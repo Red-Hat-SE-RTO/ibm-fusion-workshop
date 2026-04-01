@@ -13,8 +13,8 @@ By the end of this module, you will:
 
 * Understand how Change Block Tracking (CBT) drastically reduces backup windows
 * Create a Ceph RBD VolumeSnapshot of a running VM's disk -- the same mechanism Fusion CBT uses
-* Explore the Fusion Data Protection architecture and backup CRD workflow
-* Verify snapshot readiness and understand incremental-forever backup strategy
+* Configure a Fusion Backup Policy and assign it to your application
+* Verify data protection resources in both the OpenShift Console and Fusion Dashboard
 
 == Conceptual Background
 
@@ -52,7 +52,7 @@ Fusion Data Protection is built on a layered architecture:
 └─────────────────────────────────────┘
 ----
 
-At the bottom of this stack is the *VolumeSnapshot* -- a Ceph RBD snapshot that captures the state of a block device in milliseconds. In this module, you will create a VolumeSnapshot directly to see this mechanism in action.
+At the bottom of this stack is the *VolumeSnapshot* -- a Ceph RBD snapshot that captures the state of a block device in milliseconds. In this module, you will create a VolumeSnapshot directly, then wire up the Fusion policy layer on top.
 
 == Step 1: Verify the VM from Module 2
 
@@ -148,6 +148,11 @@ Key fields to note:
 * `restoreSize: 10Gi` -- the logical size of the snapshotted volume
 * `creationTime` -- the exact point-in-time when the snapshot was taken
 
+You can also see the snapshot in the OpenShift Console. Navigate to *Storage > VolumeSnapshots* and select your project `{user_namespace}`.
+
+.The OpenShift Console shows the VolumeSnapshot with its source PVC, status, and size.
+image::volumesnapshot-console.png[VolumeSnapshot in OpenShift Console]
+
 == Step 5: Create a Second Snapshot (Incremental)
 
 Create a second snapshot to simulate an incremental backup point:
@@ -201,9 +206,9 @@ This completely bypasses:
 * Filesystem-level scanning
 * Application-level quiescing (for crash-consistent backups)
 
-=== Fusion Data Protection CRDs
+== Step 6: Create a Fusion Backup Policy
 
-In a production environment, Fusion automates this through a set of Custom Resources:
+Now that you have seen the snapshot mechanism, let's wire up the Fusion Data Protection layer. Fusion uses a set of Custom Resources to automate snapshot scheduling, retention, and remote replication:
 
 [cols="1,2"]
 |===
@@ -216,7 +221,7 @@ In a production environment, Fusion automates this through a set of Custom Resou
 |Defines schedule, retention, and which BSL to use
 
 |`PolicyAssignment`
-|Links a BackupPolicy to an Application (namespace) with a `runNow` trigger
+|Links a BackupPolicy to an Application (namespace)
 
 |`Backup`
 |Represents a single backup job and its status
@@ -232,12 +237,81 @@ Your namespace is already registered as a Fusion Application:
 oc get applications.application.isf.ibm.com -n {fusion_namespace} | grep {user_namespace}
 ----
 
-And the default local snapshot BSL is pre-configured:
+And a local snapshot backup location is pre-configured:
 
 [source,bash,role=execute,subs="attributes+"]
 ----
 oc get backupstoragelocations -n {fusion_namespace}
 ----
+
+=== Create the BackupPolicy
+
+Create a backup policy with a 3-day retention targeting the local snapshot storage:
+
+[source,bash,role=execute,subs="attributes+"]
+----
+cat <<EOF | oc apply -f -
+apiVersion: data-protection.isf.ibm.com/v1alpha1
+kind: BackupPolicy
+metadata:
+  name: {user}-vm-backup-policy
+  namespace: {fusion_namespace}
+spec:
+  backupStorageLocation: isf-dp-inplace-snapshot
+  provider: isf-backup-restore
+  retention:
+    number: 3
+    unit: day
+EOF
+----
+
+Verify the policy was created:
+
+[source,bash,role=execute,subs="attributes+"]
+----
+oc get backuppolicies -n {fusion_namespace}
+----
+
+=== Assign the Policy to Your Application
+
+Link the backup policy to your workshop namespace (the Fusion Application):
+
+[source,bash,role=execute,subs="attributes+"]
+----
+cat <<EOF | oc apply -f -
+apiVersion: data-protection.isf.ibm.com/v1alpha1
+kind: PolicyAssignment
+metadata:
+  name: {user}-vm-policy-assignment
+  namespace: {fusion_namespace}
+spec:
+  application: {user_namespace}
+  backupPolicy: {user}-vm-backup-policy
+  runNow: false
+EOF
+----
+
+Verify the assignment:
+
+[source,bash,role=execute,subs="attributes+"]
+----
+oc get policyassignments -n {fusion_namespace}
+----
+
+=== Verify in the Fusion Dashboard
+
+Open the IBM Fusion UI: {fusion_ui_url}
+
+. Navigate to *Backup & restore > Policies* -- you should see `{user}-vm-backup-policy` listed
+. Navigate to *Backup & restore > Backed up applications* -- your namespace `{user_namespace}` now appears as a protected application
+
+.The Fusion Dashboard shows the backup policy with its retention settings and assigned storage location.
+image::fusion-backup-policy.png[Fusion Backup Policy]
+
+You can also see the backup configuration from the OpenShift Console under *Storage > Backup & Restore*. The *Policies* and *Applications* tabs reflect the same resources.
+
+.The OpenShift Console Backup & Restore overview shows the policy assignment and application status.
+image::ocp-backup-restore-overview.png[OpenShift Backup & Restore Overview]
 
 === Job Hooks (Advanced)
 
@@ -249,13 +323,15 @@ For *application-consistent* backups (e.g., databases), Fusion supports *Job Hoo
 
 There isn't time to configure a Job Hook today, but know they exist for production database workloads.
 
-== Step 6: Clean Up Snapshots
+== Step 7: Clean Up
 
-Remove the snapshots before moving on:
+Remove the snapshots and backup resources before moving on:
 
 [source,bash,role=execute,subs="attributes+"]
 ----
 oc delete volumesnapshot {user}-testvm-snapshot-001 {user}-testvm-snapshot-002 -n {user_namespace}
+oc delete policyassignment {user}-vm-policy-assignment -n {fusion_namespace}
+oc delete backuppolicy {user}-vm-backup-policy -n {fusion_namespace}
 ----
 
 [WARNING]
@@ -272,5 +348,5 @@ Do *not* delete the VM itself -- you may use it in later modules.
 
 [TIP]
 ====
-*Facilitator Notes:* While the snapshots create, explain the Fusion {fusion_version} native integration with the Ceph `rbd-diff` API. Walk through the architecture diagram and CRD table. Emphasize that the VolumeSnapshot students just created is the *exact same primitive* that Fusion's CBT uses internally -- the Fusion layer adds scheduling, retention policies, remote targets, and application-consistent hooks on top.
+*Facilitator Notes:* While the snapshots create, explain the Fusion {fusion_version} native integration with the Ceph `rbd-diff` API. Walk through the architecture diagram and CRD table. Emphasize that the VolumeSnapshot students just created is the *exact same primitive* that Fusion's CBT uses internally -- the Fusion layer adds scheduling, retention policies, remote targets, and application-consistent hooks on top. Point out the Backup & Restore section in both the Fusion Dashboard and the OpenShift Console while students verify their resources.
 ====
