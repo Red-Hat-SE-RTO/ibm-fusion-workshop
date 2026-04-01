@@ -60,43 +60,11 @@ spec:
         guid: {{ $user }}
         deployer:
           domain: {{ $.Values.deployer.domain }}
-        proxy:
-          resources:
-            limits:
-              cpu: 50m
-              memory: 64Mi
-            requests:
-              cpu: 5m
-              memory: 16Mi
-        terminal:
-          setup: "true"
-          resources:
-            limits:
-              cpu: 200m
-              memory: 256Mi
-            requests:
-              cpu: 50m
-              memory: 128Mi
-          storage:
-            setup: "false"
-        wetty:
-          setup: "false"
-          ssh:
-            autoSshToBastion: false
-        nookbag_sidecar:
-          setup: "true"
-          resources:
-            limits:
-              cpu: 100m
-              memory: 128Mi
-            requests:
-              cpu: 10m
-              memory: 32Mi
-        novnc:
-          setup: "false"
         content:
+          title: {{ $.Values.workshop.title | quote }}
           repoUrl: {{ $.Values.components.showroom.content.repoUrl }}
           repoRef: {{ $.Values.components.showroom.content.repoRef }}
+          antoraPlaybook: default-site.yml
           user_data: |
             user: {{ $user }}
             user_namespace: {{ $.Values.components.workshopInfra.userNamespacePrefix }}-{{ $user }}
@@ -110,6 +78,29 @@ spec:
             fusion_namespace: {{ $.Values.workshop.fusion_namespace }}
             odf_namespace: {{ $.Values.workshop.odf_namespace }}
             workshop_title: {{ $.Values.workshop.title | quote }}
+        terminal:
+          setup: "true"
+          name: terminal
+          display_name: "Terminal"
+          resources:
+            limits:
+              cpu: 200m
+              memory: 256Mi
+            requests:
+              cpu: 50m
+              memory: 128Mi
+          storage:
+            setup: "false"
+        wetty:
+          setup: "false"
+          ssh:
+            autoSshToBastion: "false"
+        second_terminal_tab:
+          setup: "false"
+        codeserver:
+          setup: "false"
+        novnc:
+          setup: "false"
   destination:
     server: https://kubernetes.default.svc
     namespace: showroom-{{ $user }}

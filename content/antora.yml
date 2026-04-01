@@ -1,6 +1,6 @@
-name: ibm-fusion-workshop
+name: modules
 title: "Modern Hybrid Infrastructure: IBM Storage Fusion & OpenShift Data Foundation"
-version: "1.0"
+version: master
 start_page: ROOT:index.adoc
 nav:
   - modules/ROOT/nav.adoc
