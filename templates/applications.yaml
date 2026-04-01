@@ -93,6 +93,7 @@ spec:
             workshop_title: {{ $.Values.workshop.title | quote }}
   destination:
     server: https://kubernetes.default.svc
+    namespace: showroom-{{ $user }}
   syncPolicy:
     automated:
       prune: true
