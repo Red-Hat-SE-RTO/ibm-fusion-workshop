@@ -67,7 +67,17 @@ spec:
         documentation:
           repoUrl: {{ $.Values.components.showroom.content.repoUrl }}
           repoRef: {{ $.Values.components.showroom.content.repoRef }}
+        wetty:
+          setup: "false"
+          ssh:
+            autoSshToBastion: false
+        nookbag_sidecar:
+          setup: "false"
+        novnc:
+          setup: "false"
         content:
+          repoUrl: {{ $.Values.components.showroom.content.repoUrl }}
+          repoRef: {{ $.Values.components.showroom.content.repoRef }}
           user_data: |
             user: {{ $user }}
             user_namespace: {{ $.Values.components.workshopInfra.userNamespacePrefix }}-{{ $user }}
