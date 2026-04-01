@@ -80,13 +80,13 @@ In a production deployment, Fusion automates snapshot scheduling, retention, and
 
 [NOTE]
 ====
-*Fusion Dashboard and VM Backups:* IBM Fusion has supported virtual machine backup and restore through the Dashboard since version 2.8, including the *Backed up applications* page, policy management, and incremental VM backups. Full Dashboard integration requires:
+*Fusion Dashboard and VM Backups:* IBM Fusion has supported virtual machine backup and restore through the Dashboard since version 2.8, including the *Backed up applications* page, policy management, and incremental VM backups. Full Dashboard integration requires a multi-cluster hub-spoke topology:
 
-* Red Hat Advanced Cluster Management (RHACM) installed with a registered hub-spoke `Connection` CR
-* The Backup & Restore service fully reconciled across the hub-spoke architecture
+* Red Hat Advanced Cluster Management (RHACM) installed on the hub cluster
+* The Fusion Backup & Restore *spoke* installed on each managed cluster, which creates a `Connection` CR linking the spoke to the hub via a Kafka bridge
 * Both Block and Filesystem volumeMode PVCs are supported (Block detection is automatic since Fusion 2.9 -- see https://www.ibm.com/docs/en/fusion-hci-systems/2.9.x?topic=protection-backup-restore-block-filesystem-pvc[Backup & Restore Block and filesystem PVC])
 
-This workshop cluster (Fusion {fusion_version} on OCP {ocp_version}) runs in single-cluster mode without RHACM hub registration, so the Fusion Dashboard backup pages are not populated. When the workshop environment is upgraded with RHACM and proper hub-spoke configuration, students will be able to manage backup policies and view protected applications directly in the Fusion Dashboard under *Backup & restore > Policies* and *Backed up applications*.
+This workshop cluster (Fusion {fusion_version} on OCP {ocp_version}) has RHACM installed but operates as a single cluster without a separate hub for spoke registration. The Fusion `Connection` CR requires a remote cluster endpoint and cannot be self-referential. As a result, the guardian backup services do not bridge `BackupPolicy` and `PolicyAssignment` resources to the Velero/OADP layer, and the Dashboard backup pages remain empty. In a production multi-cluster deployment with a dedicated backup hub, students would manage backup policies and view protected applications directly in the Fusion Dashboard under *Backup & restore > Policies* and *Backed up applications*.
 
 For more details, see:
 

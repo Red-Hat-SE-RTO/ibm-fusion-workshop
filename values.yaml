@@ -31,6 +31,13 @@ components:
       repoUrl: "https://github.com/Red-Hat-SE-RTO/ibm-fusion-workshop.git"
       repoRef: "main"
 
+  rhacm:
+    enabled: true
+    namespace: "open-cluster-management"
+    channel: "release-2.14"
+    source: "redhat-operators"
+    sourceNamespace: "openshift-marketplace"
+
   workshopInfra:
     enabled: true
     userNamespacePrefix: "workshop"

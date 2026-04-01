@@ -1,0 +1,5 @@
+rhacm:
+  namespace: "open-cluster-management"
+  channel: "release-2.14"
+  source: "redhat-operators"
+  sourceNamespace: "openshift-marketplace"

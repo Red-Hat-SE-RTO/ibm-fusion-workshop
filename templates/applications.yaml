@@ -1,3 +1,36 @@
+{{- if .Values.components.rhacm.enabled }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rhacm
+  namespace: {{ .Values.argocd.namespace }}
+  labels:
+    {{- include "workshop.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: {{ .Values.gitops.repoUrl }}
+    targetRevision: {{ .Values.gitops.revision }}
+    path: components/rhacm
+    helm:
+      valuesObject:
+        rhacm:
+          {{- toYaml .Values.components.rhacm | nindent 10 }}
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+{{- end }}
 {{- if .Values.components.workshopInfra.enabled }}
 ---
 apiVersion: argoproj.io/v1alpha1

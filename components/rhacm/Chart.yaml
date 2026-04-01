@@ -1,0 +1,6 @@
+apiVersion: v2
+name: rhacm
+description: Red Hat Advanced Cluster Management operator and MultiClusterHub
+type: application
+version: 1.0.0
+appVersion: "2.14"
