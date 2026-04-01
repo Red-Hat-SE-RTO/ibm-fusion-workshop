@@ -84,7 +84,14 @@ spec:
           ssh:
             autoSshToBastion: false
         nookbag_sidecar:
-          setup: "false"
+          setup: "true"
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 10m
+              memory: 32Mi
         novnc:
           setup: "false"
         content:
