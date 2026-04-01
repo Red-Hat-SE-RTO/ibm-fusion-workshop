@@ -86,7 +86,7 @@ In a production deployment, Fusion automates snapshot scheduling, retention, and
 * The Fusion Backup & Restore *spoke* installed on each managed cluster, which creates a `Connection` CR linking the spoke to the hub via a Kafka bridge
 * Both Block and Filesystem volumeMode PVCs are supported (Block detection is automatic since Fusion 2.9 -- see https://www.ibm.com/docs/en/fusion-hci-systems/2.9.x?topic=protection-backup-restore-block-filesystem-pvc[Backup & Restore Block and filesystem PVC])
 
-This workshop cluster (Fusion {fusion_version} on OCP {ocp_version}) has RHACM installed but operates as a single cluster without a separate hub for spoke registration. The Fusion `Connection` CR requires a remote cluster endpoint and cannot be self-referential. As a result, the guardian backup services do not bridge `BackupPolicy` and `PolicyAssignment` resources to the Velero/OADP layer, and the Dashboard backup pages remain empty. In a production multi-cluster deployment with a dedicated backup hub, students would manage backup policies and view protected applications directly in the Fusion Dashboard under *Backup & restore > Policies* and *Backed up applications*.
+This workshop cluster (Fusion {fusion_version} on OCP {ocp_version}) has RHACM installed but operates as a single cluster without a separate hub for spoke registration. The Fusion `Connection` CR requires a remote cluster endpoint and cannot be self-referential. As a result, the guardian backup services do not bridge `BackupPolicy` and `PolicyAssignment` resources to the Velero/OADP layer, and the Dashboard backup pages remain empty. In a production multi-cluster deployment with a dedicated backup hub, students would manage backup policies and view protected applications directly in the Fusion Dashboard under *Backup & restore > Policies* and *Backed up applications*. See the <<Optional: Fusion Backup Dashboard with Multi-Cluster Hub-Spoke>> section at the end of this module for hands-on steps when a hub cluster is available.
 
 For more details, see:
 
@@ -271,6 +271,103 @@ oc delete volumesnapshot {user}-testvm-snapshot-001 {user}-testvm-snapshot-002 -
 Do *not* delete the VM itself -- you may use it in later modules.
 ====
 
+== Optional: Fusion Backup Dashboard with Multi-Cluster Hub-Spoke
+
+[sidebar]
+****
+*Requires:* A second OpenShift cluster with IBM Storage Fusion +
+*Duration:* 45-60 minutes (additional)
+****
+
+The hands-on steps above demonstrate the core CBT mechanism using VolumeSnapshots on a single cluster. To see backup policies and protected applications in the Fusion Dashboard, you need a *multi-cluster hub-spoke* deployment.
+
+=== What You Would Need
+
+----
+┌──────────────────────────┐         ┌──────────────────────────┐
+│       Hub Cluster        │         │     Spoke Cluster        │
+│                          │         │   (this workshop cluster)│
+│  RHACM + MultiClusterHub│         │  Fusion Backup Agent     │
+│  Fusion Dashboard        │◄───────►│  Velero / OADP           │
+│  Guardian Services       │  Kafka  │  Connection CR → Hub     │
+│  Kafka Bridge            │  Bridge │                          │
+└──────────────────────────┘         └──────────────────────────┘
+----
+
+. *Hub cluster:* A separate OpenShift cluster with RHACM and the Fusion Backup & Restore *hub* service installed. The hub hosts the Fusion Dashboard, guardian services, and the Kafka bridge endpoint.
+
+. *Spoke registration:* From the hub's Fusion UI, generate a *connection snippet*. Install the Backup & Restore *spoke* on this workshop cluster using that snippet. This creates the `Connection.application.isf.ibm.com` CR that links the spoke to the hub.
+
+. *Policy workflow:* Once connected, `BackupPolicy` and `PolicyAssignment` resources created on this cluster flow through the Kafka bridge to the guardian services on the hub. Backups are executed by Velero/OADP on the spoke and tracked in the hub's Dashboard.
+
+=== Why It Cannot Run on a Single Cluster
+
+The Fusion `Connection` CR requires a *remote* cluster API endpoint. An admission webhook explicitly blocks self-referential connections:
+
+----
+admission webhook "vconnection.kb.io" denied the request:
+connection has the same apiserver with local cluster
+----
+
+This is by design -- the hub-spoke architecture separates backup orchestration (hub) from backup execution (spoke) for scalability and disaster recovery isolation.
+
+=== Hands-On Steps (If a Hub Is Available)
+
+If your environment includes a second cluster configured as a Fusion backup hub:
+
+. Obtain the connection snippet from the hub cluster's Fusion UI (*Backup & restore > Clusters > Add cluster*)
+. Install the Backup & Restore spoke on this cluster using the snippet
+. Verify the `Connection` CR was created:
++
+[source,bash,role=execute,subs="attributes+"]
+----
+oc get connection.application.isf.ibm.com -n {fusion_namespace}
+----
+
+. Create a `BackupPolicy` and `PolicyAssignment`:
++
+[source,bash,role=execute,subs="attributes+"]
+----
+cat <<EOF | oc apply -f -
+apiVersion: data-protection.isf.ibm.com/v1alpha1
+kind: BackupPolicy
+metadata:
+  name: {user}-vm-backup-policy
+  namespace: {fusion_namespace}
+spec:
+  backupStorageLocation: isf-dp-inplace-snapshot
+  provider: isf-backup-restore
+  retention:
+    number: 3
+    unit: day
+---
+apiVersion: data-protection.isf.ibm.com/v1alpha1
+kind: PolicyAssignment
+metadata:
+  name: {user}-vm-policy-assignment
+  namespace: {fusion_namespace}
+spec:
+  application: {user_namespace}
+  backupPolicy: {user}-vm-backup-policy
+  runNow: true
+EOF
+----
+
+. Verify in the Fusion Dashboard on the hub: *Backup & restore > Policies* and *Backed up applications*
+. Verify in the OpenShift Console: *Storage > Backup & Restore*
+. Clean up when done:
++
+[source,bash,role=execute,subs="attributes+"]
+----
+oc delete policyassignment {user}-vm-policy-assignment -n {fusion_namespace}
+oc delete backuppolicy {user}-vm-backup-policy -n {fusion_namespace}
+----
+
+[NOTE]
+====
+For details on setting up the hub-spoke topology, see https://www.ibm.com/docs/en/fusion-software/2.12.x?topic=restore-backup-spoke[Backup & Restore spoke installation] in the IBM Fusion documentation.
+====
+
 == References
 
 * https://www.ibm.com/docs/en/storage-fusion/{fusion_version}?topic=overview-data-protection[IBM Fusion Data Protection Overview]
@@ -280,5 +377,5 @@ Do *not* delete the VM itself -- you may use it in later modules.
 
 [TIP]
 ====
-*Facilitator Notes:* While the snapshots create, explain the Fusion {fusion_version} native integration with the Ceph `rbd-diff` API. Walk through the architecture diagram and CRD table. Emphasize that the VolumeSnapshot students just created is the *exact same primitive* that Fusion's CBT uses internally -- the Fusion layer adds scheduling, retention policies, remote targets, and application-consistent hooks on top. Point students to *Storage > VolumeSnapshots* in the OpenShift Console. Note that the Fusion Backup Dashboard requires RHACM hub-spoke registration to display policies and protected applications; the NOTE block in the Conceptual Background section covers this gap and links to IBM documentation.
+*Facilitator Notes:* While the snapshots create, explain the Fusion {fusion_version} native integration with the Ceph `rbd-diff` API. Walk through the architecture diagram and CRD table. Emphasize that the VolumeSnapshot students just created is the *exact same primitive* that Fusion's CBT uses internally -- the Fusion layer adds scheduling, retention policies, remote targets, and application-consistent hooks on top. Point students to *Storage > VolumeSnapshots* in the OpenShift Console. The Fusion Backup Dashboard requires a multi-cluster hub-spoke topology; if a second cluster is available as a hub, walk students through the optional section. Otherwise, use the NOTE block and architecture diagram in the optional section to explain the hub-spoke design conceptually.
 ====
