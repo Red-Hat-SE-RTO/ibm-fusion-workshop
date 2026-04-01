@@ -57,16 +57,28 @@ spec:
     targetRevision: {{ $.Values.components.showroom.chartVersion }}
     helm:
       valuesObject:
+        guid: {{ $user }}
         deployer:
           domain: {{ $.Values.deployer.domain }}
-        general:
-          guid: {{ $user }}
-        namespace:
-          create: true
-          name: showroom-{{ $user }}
-        documentation:
-          repoUrl: {{ $.Values.components.showroom.content.repoUrl }}
-          repoRef: {{ $.Values.components.showroom.content.repoRef }}
+        proxy:
+          resources:
+            limits:
+              cpu: 50m
+              memory: 64Mi
+            requests:
+              cpu: 5m
+              memory: 16Mi
+        terminal:
+          setup: "true"
+          resources:
+            limits:
+              cpu: 200m
+              memory: 256Mi
+            requests:
+              cpu: 50m
+              memory: 128Mi
+          storage:
+            setup: "false"
         wetty:
           setup: "false"
           ssh:
