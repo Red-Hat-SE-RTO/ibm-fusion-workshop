@@ -1,0 +1,6 @@
+apiVersion: v2
+name: dcs
+description: IBM Fusion Data Cataloging Service -- creates a FusionServiceInstance to deploy the DCS operator and SpectrumDiscover CR
+type: application
+version: 1.0.0
+appVersion: "2.12"

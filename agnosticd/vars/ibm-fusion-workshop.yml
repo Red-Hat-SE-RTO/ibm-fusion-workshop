@@ -1,0 +1,49 @@
+---
+# =============================================================================
+# IBM Storage Fusion & ODF Workshop -- AgnosticD v2 Variables
+# =============================================================================
+#
+# Usage:
+#   ./bin/agd provision -g <guid> -c ibm-fusion-workshop -a <account>
+#
+# Prerequisites:
+#   - Base config must provision OCP 4.18+ with IBM Storage Fusion 2.12+
+#   - OpenShift GitOps (ArgoCD) operator must be installed
+#   - OpenShift Data Foundation must be available
+#
+# =============================================================================
+
+# --- Mandatory Variables ---
+config: openshift-cluster
+cloud_provider: aws
+cloud_provider_version: main
+
+# --- Additional Collections ---
+requirements_content:
+  collections:
+    - name: https://github.com/agnosticd/core_workloads.git
+      type: git
+      version: main
+
+# --- Workloads ---
+workloads:
+  - agnosticd.core_workloads.ocp4_workload_openshift_gitops
+  - agnosticd.core_workloads.ocp4_workload_field_content
+
+# --- OpenShift GitOps (ArgoCD) ---
+ocp4_workload_openshift_gitops_channel: latest
+
+# --- Field Content (deploys the workshop Helm chart via ArgoCD) ---
+ocp4_workload_field_content_gitops_repo_url: "https://github.com/Red-Hat-SE-RTO/ibm-fusion-workshop.git"
+ocp4_workload_field_content_gitops_repo_ref: "main"
+
+# --- Workshop-Specific Variables ---
+# Override these in your account-specific vars or at provision time:
+#
+#   ibm_fusion_workshop_num_users: 5
+#   ibm_fusion_workshop_openai_api_key: "<your-key>"
+#
+# The OpenAI API key must be created as a Secret on the cluster:
+#   oc create secret generic openai-api-key \
+#     -n openshift-lightspeed \
+#     --from-literal=api-key="${ibm_fusion_workshop_openai_api_key}"

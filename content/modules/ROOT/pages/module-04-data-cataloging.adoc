@@ -50,7 +50,7 @@ DCS exposes an MCP Server that allows LLMs to read and write catalog metadata, d
 
 === OpenShift Lightspeed (OLS)
 
-*Red Hat OpenShift Lightspeed* is an AI assistant integrated directly into the OpenShift web console. In this workshop, OLS is configured with *OpenAI GPT-5.4* as the LLM backend, providing:
+*Red Hat OpenShift Lightspeed* is an AI assistant integrated directly into the OpenShift web console. In this workshop, OLS is configured with *OpenAI GPT-4o* as the LLM backend, providing:
 
 * A chat panel accessible from any page in the OpenShift console
 * Natural language queries about cluster resources, troubleshooting, and -- through MCP -- data catalog exploration
@@ -67,7 +67,7 @@ Workshop Attendee
 OpenShift Console ──► Lightspeed Chat Panel
     │                        │
     │                        ▼
-    │                  OpenAI API (GPT-5.4)
+    │                  OpenAI API (GPT-4o)
     │                        │
     │                        ▼ (MCP Tool Calls - JSON-RPC 2.0)
     │                  DCS MCP Server
@@ -92,7 +92,7 @@ Before proceeding with the hands-on exercises, verify the following prerequisite
 
 [source,bash,role=execute,subs="attributes+"]
 ----
-oc get csv -n {fusion_namespace} -o custom-columns='NAME:.metadata.name,VERSION:.spec.version' | grep -i fusion
+oc get csv -n {fusion_namespace} -o custom-columns='NAME:.metadata.name,DISPLAY:.spec.displayName,VERSION:.spec.version' | grep -i fusion
 ----
 
 The output should show version *2.12* or higher. If your cluster runs an earlier version, skip to the <<Conceptual Walkthrough>> section.
@@ -165,7 +165,7 @@ Get the route for the MCP HTTP endpoint:
 
 [source,bash,role=execute,subs="attributes+"]
 ----
-oc -n {dcs_namespace} get route -l role=dcs-ai-mcp-server -o jsonpath='{.items[0].spec.host}'
+oc -n {dcs_namespace} get route dcs-mcp-route -o jsonpath='{.spec.host}'
 ----
 
 Note this URL -- it is the MCP server endpoint that Lightspeed connects to for catalog operations.
@@ -257,13 +257,13 @@ With the DCS MCP Server, an AI agent can perform these same operations in minute
 
 When a user asks a natural language question through Lightspeed:
 
-. *Lightspeed* sends the query to the *OpenAI GPT-5.4* model
+. *Lightspeed* sends the query to the *OpenAI GPT-4o* model
 . The model determines which *MCP tools* are needed (e.g., `list_datasets`, `get_metadata`, `apply_tag`)
 . Lightspeed sends *JSON-RPC 2.0* tool invocation requests to the *DCS MCP Server*
 . The MCP Server executes the operations against the *Data Catalog*
 . Results flow back through the chain to the user as a natural language response
 
-The model's native tool-use capabilities (GPT-5.4 supports 1M token context and improved agentic workflows) make it particularly effective for multi-step catalog exploration tasks.
+The model's native tool-use capabilities make it particularly effective for multi-step catalog exploration tasks.
 
 === Use Case: Security Risk Assessment
 

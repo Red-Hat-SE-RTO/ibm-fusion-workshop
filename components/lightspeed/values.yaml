@@ -1,0 +1,8 @@
+lightspeed:
+  namespace: openshift-lightspeed
+  channel: stable
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  llmProvider: openai
+  llmModel: gpt-4o
+  apiKeySecretName: openai-api-key

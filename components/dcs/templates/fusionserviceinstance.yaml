@@ -1,0 +1,27 @@
+apiVersion: service.isf.ibm.com/v1
+kind: FusionServiceInstance
+metadata:
+  name: data-cataloging
+  namespace: {{ .Values.dcs.fusionNamespace }}
+spec:
+  creator: User
+  doInstall: true
+  parameters:
+    - name: namespace
+      provided: false
+      value: {{ .Values.dcs.namespace | quote }}
+    - name: rwx_storage_class
+      provided: true
+      value: {{ .Values.dcs.rwxStorageClass | quote }}
+    - name: doInstall
+      provided: false
+      value: "true"
+    - name: license
+      provided: false
+      value: '{"accept": true}'
+    - name: affinity
+      provided: false
+      value: '{"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"gpu.isf.ibm.com","operator":"DoesNotExist"}]}]}}}'
+  serviceDefinition: data-cataloging-service-definition
+  triggerUpdate: false
+  updateServiceCRSpec: false

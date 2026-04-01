@@ -1,0 +1,19 @@
+apiVersion: ols.openshift.io/v1alpha1
+kind: OLSConfig
+metadata:
+  name: cluster
+  namespace: {{ .Values.lightspeed.namespace }}
+spec:
+  llm:
+    providers:
+      - name: {{ .Values.lightspeed.llmProvider }}
+        type: {{ .Values.lightspeed.llmProvider }}
+        credentialsSecretRef:
+          name: {{ .Values.lightspeed.apiKeySecretName }}
+        models:
+          - name: {{ .Values.lightspeed.llmModel }}
+  ols:
+    defaultModel: {{ .Values.lightspeed.llmModel }}
+    defaultProvider: {{ .Values.lightspeed.llmProvider }}
+    conversationCache:
+      type: postgres

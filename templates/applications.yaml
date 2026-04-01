@@ -1,3 +1,36 @@
+{{- if .Values.components.machineset.enabled }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: machineset
+  namespace: {{ .Values.argocd.namespace }}
+  labels:
+    {{- include "workshop.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: {{ .Values.gitops.repoUrl }}
+    targetRevision: {{ .Values.gitops.revision }}
+    path: components/machineset
+    helm:
+      valuesObject:
+        machineset:
+          {{- toYaml .Values.components.machineset | nindent 10 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openshift-machine-api
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+{{- end }}
 {{- if .Values.components.rhacm.enabled }}
 ---
 apiVersion: argoproj.io/v1alpha1
@@ -66,6 +99,73 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+{{- end }}
+{{- if .Values.components.dcs.enabled }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dcs
+  namespace: {{ .Values.argocd.namespace }}
+  labels:
+    {{- include "workshop.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: {{ .Values.gitops.repoUrl }}
+    targetRevision: {{ .Values.gitops.revision }}
+    path: components/dcs
+    helm:
+      valuesObject:
+        dcs:
+          {{- toYaml .Values.components.dcs | nindent 10 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.components.dcs.fusionNamespace }}
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+{{- end }}
+{{- if .Values.components.lightspeed.enabled }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: lightspeed
+  namespace: {{ .Values.argocd.namespace }}
+  labels:
+    {{- include "workshop.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: {{ .Values.gitops.repoUrl }}
+    targetRevision: {{ .Values.gitops.revision }}
+    path: components/lightspeed
+    helm:
+      valuesObject:
+        lightspeed:
+          {{- toYaml .Values.components.lightspeed | nindent 10 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.components.lightspeed.namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
 {{- end }}
 {{- if .Values.components.showroom.enabled }}
 {{- range $user := .Values.users }}

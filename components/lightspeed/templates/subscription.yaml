@@ -1,0 +1,11 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: lightspeed-operator
+  namespace: {{ .Values.lightspeed.namespace }}
+spec:
+  channel: {{ .Values.lightspeed.channel }}
+  installPlanApproval: Automatic
+  name: lightspeed-operator
+  source: {{ .Values.lightspeed.source }}
+  sourceNamespace: {{ .Values.lightspeed.sourceNamespace }}

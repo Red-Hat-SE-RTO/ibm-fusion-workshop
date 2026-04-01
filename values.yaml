@@ -42,6 +42,34 @@ components:
     enabled: true
     userNamespacePrefix: "workshop"
 
+  machineset:
+    enabled: true
+    instanceType: "m6a.4xlarge"
+    replicas: 2
+    vcpu: "16"
+    memoryMb: "65536"
+    region: "us-east-2"
+    az: "us-east-2c"
+    infraId: "ocp-wnb25"
+    ami: "ami-0b9fcc2f8bed8771e"
+    iamProfile: "ocp-wnb25-worker-profile"
+
+  dcs:
+    enabled: true
+    fusionNamespace: "ibm-spectrum-fusion-ns"
+    namespace: "ibm-data-cataloging"
+    rwxStorageClass: "ocs-storagecluster-cephfs"
+
+  lightspeed:
+    enabled: true
+    namespace: "openshift-lightspeed"
+    channel: "stable"
+    source: "redhat-operators"
+    sourceNamespace: "openshift-marketplace"
+    llmProvider: "openai"
+    llmModel: "gpt-4o"
+    apiKeySecretName: "openai-api-key"
+
 # Cluster-specific variables passed to each user's Showroom via user_data
 workshop:
   title: "Modern Hybrid Infrastructure: IBM Storage Fusion & OpenShift Data Foundation"

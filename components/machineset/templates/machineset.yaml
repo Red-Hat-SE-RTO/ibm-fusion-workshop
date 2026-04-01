@@ -1,0 +1,73 @@
+apiVersion: machine.openshift.io/v1beta1
+kind: MachineSet
+metadata:
+  name: {{ .Values.machineset.infraId }}-dcs-{{ .Values.machineset.az }}
+  namespace: openshift-machine-api
+  labels:
+    machine.openshift.io/cluster-api-cluster: {{ .Values.machineset.infraId }}
+  annotations:
+    machine.openshift.io/vCPU: "{{ .Values.machineset.vcpu }}"
+    machine.openshift.io/memoryMb: "{{ .Values.machineset.memoryMb }}"
+    machine.openshift.io/GPU: "0"
+    capacity.cluster-autoscaler.kubernetes.io/labels: kubernetes.io/arch=amd64
+spec:
+  replicas: {{ .Values.machineset.replicas }}
+  selector:
+    matchLabels:
+      machine.openshift.io/cluster-api-cluster: {{ .Values.machineset.infraId }}
+      machine.openshift.io/cluster-api-machineset: {{ .Values.machineset.infraId }}-dcs-{{ .Values.machineset.az }}
+  template:
+    metadata:
+      labels:
+        machine.openshift.io/cluster-api-cluster: {{ .Values.machineset.infraId }}
+        machine.openshift.io/cluster-api-machine-role: worker
+        machine.openshift.io/cluster-api-machine-type: worker
+        machine.openshift.io/cluster-api-machineset: {{ .Values.machineset.infraId }}-dcs-{{ .Values.machineset.az }}
+    spec:
+      lifecycleHooks: {}
+      metadata: {}
+      providerSpec:
+        value:
+          ami:
+            id: {{ .Values.machineset.ami }}
+          apiVersion: machine.openshift.io/v1beta1
+          blockDevices:
+            - ebs:
+                encrypted: true
+                iops: 0
+                kmsKey:
+                  arn: ""
+                volumeSize: 250
+                volumeType: gp3
+          credentialsSecret:
+            name: aws-cloud-credentials
+          deviceIndex: 0
+          iamInstanceProfile:
+            id: {{ .Values.machineset.iamProfile }}
+          instanceType: {{ .Values.machineset.instanceType }}
+          kind: AWSMachineProviderConfig
+          metadata:
+            creationTimestamp: null
+          metadataServiceOptions: {}
+          placement:
+            availabilityZone: {{ .Values.machineset.az }}
+            region: {{ .Values.machineset.region }}
+          securityGroups:
+            - filters:
+                - name: tag:Name
+                  values:
+                    - {{ .Values.machineset.infraId }}-node
+            - filters:
+                - name: tag:Name
+                  values:
+                    - {{ .Values.machineset.infraId }}-lb
+          subnet:
+            filters:
+              - name: tag:Name
+                values:
+                  - {{ .Values.machineset.infraId }}-subnet-private-{{ .Values.machineset.az }}
+          tags:
+            - name: kubernetes.io/cluster/{{ .Values.machineset.infraId }}
+              value: owned
+          userDataSecret:
+            name: worker-user-data
