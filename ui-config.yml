@@ -1,0 +1,7 @@
+links:
+  - title: OpenShift Console
+    url: "%openshift_console_url%"
+    icon: dashboard
+  - title: IBM Fusion UI
+    url: "%fusion_ui_url%"
+    icon: storage
