@@ -59,17 +59,27 @@ OpenShift Container Platform {ocp_version}
 The lab environment is *pre-provisioned*. This section walks through the installation process conceptually so you understand how the operators were deployed.
 ====
 
-=== Step 1: ODF Operator via OLM
+=== Step 1: IBM Storage Fusion Operator
 
-. Navigate to *Operators > OperatorHub* in the OpenShift Console
-. Search for "OpenShift Data Foundation"
-. When deployed alongside IBM Storage Fusion, the ODF operators are installed from the *IBM Storage Fusion Data Foundation* catalog (`isf-data-foundation-catalog`) rather than the default `redhat-operators` catalog
-. OLM creates a `Subscription` and `InstallPlan` in the `{odf_namespace}` namespace
-. The operator pods deploy and begin reconciling
+IBM Storage Fusion is the first operator installed. It orchestrates the entire storage stack.
 
-=== Step 2: Storage Cluster Instantiation
+. The `ibm-operator-catalog` CatalogSource is registered in `openshift-marketplace` (image from `icr.io/cpopen/ibm-operator-catalog`)
+. A `Subscription` is created for `isf-operator` on the `v2.0` channel with *Manual* install plan approval
+. The administrator approves the `InstallPlan`, and the Fusion operator deploys into the `{fusion_namespace}` namespace
+. Once running, Fusion takes over and automates the deployment of the storage layer
 
-Once the ODF operator is running, a `StorageCluster` custom resource is created:
+=== Step 2: Fusion Deploys ODF Automatically
+
+Fusion handles the entire ODF installation -- the administrator does not need to visit OperatorHub or create any ODF resources manually.
+
+. Fusion registers the *IBM Storage Fusion Data Foundation* catalog (`isf-data-foundation-catalog`) in `openshift-marketplace`, pointing to IBM's container registry (`icr.io/cpopen/isf-data-foundation-catalog:v{odf_version}`)
+. Fusion creates ODF `Subscription` resources in the `{odf_namespace}` namespace, targeting the `stable-{odf_version}` channel with *Automatic* approval
+. OLM resolves the subscriptions and installs the full set of ODF operators: `odf-operator`, `ocs-operator`, `rook-ceph-operator`, `mcg-operator`, `cephcsi-operator`, and supporting components
+. Each Fusion-created subscription carries the label `cns.isf.ibm.com/creator-fusion`, identifying Fusion as the orchestrator
+
+=== Step 3: Storage Cluster Instantiation
+
+Once the ODF operators are running, a `StorageSystem` custom resource is created, which in turn owns the `StorageCluster`:
 
 [source,yaml]
 ----
@@ -94,13 +104,7 @@ spec:
           storageClassName: gp3-csi
 ----
 
-The `replica: 3` field means Ceph creates three copies of each OSD across different nodes for resiliency. This triggers Rook to deploy the Ceph cluster: MON daemons, OSD daemons (one per storage device per replica), and MDS daemons for CephFS.
-
-=== Step 3: IBM Storage Fusion Operator
-
-. The IBM Storage Fusion operator is installed from the *IBM operator catalog* (`ibm-operator-catalog`) on the `v2.0` channel
-. It deploys into the `{fusion_namespace}` namespace
-. Fusion discovers the underlying ODF/Ceph cluster and exposes its data protection services
+The `replica: 3` field means Ceph deploys three OSD daemons across different failure domains (racks) for resiliency. Rook then brings up the full Ceph cluster: MON daemons for consensus, OSD daemons for data storage, and MDS daemons for CephFS. Ceph container images are pulled from IBM's registry (`cp.icr.io/cp/df/ceph`).
 
 == Key Concepts
 
@@ -128,7 +132,6 @@ Operators encode operational knowledge as software. Instead of manually deployin
 * https://docs.redhat.com/en/documentation/red_hat_openshift_data_foundation/{odf_version}[OpenShift Data Foundation {odf_version} Documentation]
 * https://docs.ceph.com/en/latest/architecture/[Ceph Storage Architecture]
 * https://olm.operatorframework.io/[Operator Lifecycle Manager]
-* https://marketplace.redhat.com/[Red Hat Marketplace]
 
 [TIP]
 ====
