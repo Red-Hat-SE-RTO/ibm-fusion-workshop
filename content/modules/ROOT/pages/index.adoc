@@ -70,8 +70,13 @@ You will work with a live, pre-provisioned environment to deploy virtual machine
 |Modern Data Protection (CBT & Backups)
 |Hands-on Lab
 
+|20 min
+|xref:module-04-data-cataloging.adoc[Module 4]
+|AI-Driven Data Cataloging with MCP
+|Hands-on Lab / Presentation
+
 |10 min
-|xref:module-04-horizon.adoc[Module 4]
+|xref:module-05-horizon.adoc[Module 5]
 |The 4.20+ Horizon: AI & Autonomic Operations
 |Presentation
 

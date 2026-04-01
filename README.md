@@ -12,7 +12,8 @@ Helm App of Apps pattern.
 | 1 | 15 min | Guided Tour | Architecture Tour & Storage Provisioning |
 | 2 | 30 min | Hands-on Lab | OpenShift Virtualization & RWX Live Migration |
 | 3 | 25 min | Hands-on Lab | Modern Data Protection (CBT & Backups) |
-| 4 | 10 min | Presentation | The 4.20+ Horizon: AI & Autonomic Operations |
+| 4 | 20 min | Hands-on Lab / Presentation | AI-Driven Data Cataloging with MCP |
+| 5 | 10 min | Presentation | The 4.20+ Horizon: AI & Autonomic Operations |
 
 ## Architecture
 
@@ -114,7 +115,8 @@ ibm-fusion-workshop/
 │           ├── module-01-architecture.adoc
 │           ├── module-02-virtualization.adoc
 │           ├── module-03-data-protection.adoc
-│           ├── module-04-horizon.adoc
+│           ├── module-04-data-cataloging.adoc
+│           ├── module-05-horizon.adoc
 │           ├── references.adoc
 │           └── conclusion.adoc
 └── README.md
@@ -179,6 +181,13 @@ AgnosticD directly, the following mapping applies:
 - [IBM Fusion Data Protection](https://www.ibm.com/docs/en/storage-fusion/2.10?topic=overview-data-protection)
 - [Change Block Tracking](https://www.ibm.com/docs/en/storage-fusion/2.10?topic=backup-change-block-tracking)
 - [Ceph rbd-diff API](https://docs.ceph.com/en/latest/rbd/rbd-snapshot/#differential-backups)
+
+### Data Cataloging & AI
+- [IBM Fusion Data Cataloging Service](https://www.ibm.com/docs/en/fusion-software/2.12.0?topic=services-data-cataloging)
+- [DCS MCP Server Documentation](https://www.ibm.com/docs/en/fusion-software/2.12.0?topic=autotagging-data-cataloging-mcp-server)
+- [Model Context Protocol Specification](https://modelcontextprotocol.io/)
+- [Red Hat OpenShift Lightspeed](https://docs.redhat.com/en/documentation/red_hat_openshift_lightspeed/)
+- [Exploring your Catalog with Natural Language through MCP (IBM Community)](https://community.ibm.com/community/user/blogs/paul-llamas-virgen/2026/03/06/exploring-your-fusion-data-catalog-with-nlp)
 
 ### Forward-Looking
 - [Kubernetes Descheduler](https://github.com/kubernetes-sigs/descheduler)

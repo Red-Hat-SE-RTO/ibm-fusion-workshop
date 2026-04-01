@@ -77,6 +77,7 @@ spec:
             storage_class_noobaa: {{ $.Values.workshop.storage_class_noobaa }}
             fusion_namespace: {{ $.Values.workshop.fusion_namespace }}
             odf_namespace: {{ $.Values.workshop.odf_namespace }}
+            dcs_namespace: {{ $.Values.workshop.dcs_namespace }}
             workshop_title: {{ $.Values.workshop.title | quote }}
         terminal:
           setup: "true"

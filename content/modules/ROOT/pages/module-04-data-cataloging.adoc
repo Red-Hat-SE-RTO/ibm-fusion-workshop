@@ -1,0 +1,317 @@
+= Module 4: AI-Driven Data Cataloging with MCP
+:navtitle: Module 4: AI-Driven Data Cataloging with MCP
+
+[sidebar]
+****
+*Duration:* 20 minutes (hands-on) / 10 minutes (conceptual only) +
+*Type:* Hands-on Lab or Presentation +
+*Prerequisites:* IBM Storage Fusion 2.12+, OpenShift Lightspeed
+****
+
+== Learning Objectives
+
+By the end of this module, you will:
+
+* Understand what IBM Fusion Data Cataloging Service (DCS) provides for unstructured data governance
+* Explain the Model Context Protocol (MCP) and how it enables AI agents to interact with enterprise data catalogs
+* Understand how Red Hat OpenShift Lightspeed integrates with the DCS MCP Server for on-cluster natural language catalog exploration
+* (Hands-on) Enable the DCS MCP Server and explore catalog metadata through the OpenShift console
+
+== Conceptual Background
+
+=== The Unstructured Data Challenge
+
+Enterprises generate massive volumes of unstructured data across distributed storage platforms. Teams struggle with three persistent problems:
+
+* *Data is difficult to discover and understand* -- datasets are spread across multiple platforms, poorly documented, and hard to explore
+* *Metadata becomes outdated and inconsistent* -- as pipelines evolve and new sources are introduced, documentation falls out of sync
+* *Data teams are overloaded with manual work* -- engineers spend too much time maintaining documentation and answering repetitive questions instead of innovating
+
+Traditional approaches -- manual tagging, static reports, hand-written SQL queries across schemas -- simply do not scale.
+
+=== IBM Fusion Data Cataloging Service (DCS)
+
+IBM Fusion Data Cataloging Service (also known as FDC or DCS) is a component of IBM Storage Fusion 2.12+ that provides automated metadata discovery, classification, and governance for data stored across Fusion-managed storage systems.
+
+DCS continuously indexes data sources, extracts metadata, applies policy-driven classification, and maintains a searchable catalog of all data assets. It runs as a set of pods in the `{dcs_namespace}` namespace on your OpenShift cluster.
+
+=== Model Context Protocol (MCP)
+
+The *Model Context Protocol* is an open standard (JSON-RPC 2.0) that enables Large Language Models to securely interact with external tools, data, and services without hard-coded integrations.
+
+*How MCP works:*
+
+. *Tool Discovery* -- AI agents query the MCP server at runtime to discover available capabilities
+. *Conversational Interface* -- users ask natural language questions; the agent translates them into MCP tool calls
+. *Universal Compatibility* -- MCP works with any compatible LLM client (OpenAI, IBM watsonx, Claude, Ollama, and others)
+. *Structured Communication* -- instead of building custom API connectors for each model, MCP provides a single protocol layer
+
+DCS exposes an MCP Server that allows LLMs to read and write catalog metadata, discover datasets, apply tags, and run classification workflows -- all through natural language.
+
+=== OpenShift Lightspeed (OLS)
+
+*Red Hat OpenShift Lightspeed* is an AI assistant integrated directly into the OpenShift web console. In this workshop, OLS is configured with *OpenAI GPT-5.4* as the LLM backend, providing:
+
+* A chat panel accessible from any page in the OpenShift console
+* Natural language queries about cluster resources, troubleshooting, and -- through MCP -- data catalog exploration
+* On-cluster experience that requires no external LLM client configuration
+
+=== Architecture
+
+The end-to-end flow for AI-driven catalog exploration:
+
+----
+Workshop Attendee
+    │
+    ▼
+OpenShift Console ──► Lightspeed Chat Panel
+    │                        │
+    │                        ▼
+    │                  OpenAI API (GPT-5.4)
+    │                        │
+    │                        ▼ (MCP Tool Calls - JSON-RPC 2.0)
+    │                  DCS MCP Server
+    │                  (ibm-data-cataloging namespace)
+    │                        │
+    │                        ▼
+    │                  Data Catalog
+    │                  (Metadata + Tags + Classifications)
+    │                        │
+    │                        ▼
+    │                  Storage Sources
+    │                  (Fusion, S3, NFS)
+----
+
+The key insight: *MCP transforms storage from a passive data repository into an AI-native resource that can be explored, enriched, and governed through conversation.*
+
+== Prerequisites Check
+
+Before proceeding with the hands-on exercises, verify the following prerequisites are met on your cluster.
+
+=== Check 1: Fusion Version
+
+[source,bash,role=execute]
+----
+oc get csv -n {fusion_namespace} -o custom-columns='NAME:.metadata.name,VERSION:.spec.version' | grep -i fusion
+----
+
+The output should show version *2.12* or higher. If your cluster runs an earlier version, skip to the <<Conceptual Walkthrough>> section.
+
+=== Check 2: Data Cataloging Service
+
+[source,bash,role=execute]
+----
+oc get namespace {dcs_namespace} 2>/dev/null && echo "DCS namespace exists" || echo "DCS namespace NOT found"
+----
+
+[source,bash,role=execute]
+----
+oc get pods -n {dcs_namespace} --no-headers 2>/dev/null | head -10
+----
+
+You should see pods running in the `{dcs_namespace}` namespace. If the namespace does not exist, DCS may not be installed -- skip to the <<Conceptual Walkthrough>> section.
+
+=== Check 3: OpenShift Lightspeed
+
+[source,bash,role=execute]
+----
+oc get csv -A | grep -i lightspeed
+----
+
+Verify the Lightspeed operator is installed and the chat panel is visible in the OpenShift console (look for the Lightspeed icon in the top navigation bar).
+
+[NOTE]
+====
+If any of these prerequisites are not met, proceed directly to the <<Conceptual Walkthrough>> section for a guided overview of the DCS MCP capabilities.
+====
+
+== Hands-on: Enable the DCS MCP Server
+
+=== Step 1: Enable Natural Language Queries
+
+The DCS MCP Server must be explicitly enabled. Patch the `SpectrumDiscover` custom resource:
+
+[source,bash,role=execute]
+----
+DCS_NS={dcs_namespace}
+
+oc -n ${DCS_NS} patch SpectrumDiscover \
+  $(oc -n ${DCS_NS} get spectrumdiscover -o jsonpath='{.items[*].metadata.name}') \
+  --type=merge -p '{
+    "spec": {
+      "enabled_features": {
+        "natural-language-queries": {
+          "enabled": true
+        }
+      }
+    }
+  }'
+----
+
+=== Step 2: Verify MCP Server Pods
+
+Wait for the MCP server pods to start:
+
+[source,bash,role=execute]
+----
+oc -n {dcs_namespace} get pod -l 'app=isd,role=dcs-ai-mcp-server' --watch
+----
+
+Press `Ctrl+C` once the pods show `Running` status.
+
+=== Step 3: Retrieve the MCP Endpoint
+
+Get the route for the MCP HTTP endpoint:
+
+[source,bash,role=execute]
+----
+oc -n {dcs_namespace} get route -l role=dcs-ai-mcp-server -o jsonpath='{.items[0].spec.host}'
+----
+
+Note this URL -- it is the MCP server endpoint that Lightspeed connects to for catalog operations.
+
+== Hands-on: Explore the Catalog via OpenShift Lightspeed
+
+=== Step 4: Open the Lightspeed Chat Panel
+
+. Navigate to the OpenShift web console: {openshift_console_url}
+. Look for the *Lightspeed* icon in the top navigation bar (or the side panel)
+. Click to open the chat panel
+
+=== Step 5: Query the Data Catalog
+
+With the DCS MCP Server enabled and Lightspeed connected, try the following natural language queries in the chat panel:
+
+*Discovery queries:*
+
+* "What data sources are registered in the catalog?"
+* "Show me all datasets that contain customer information"
+* "What tags are currently applied to the most recent ingested data?"
+
+*Metadata exploration:*
+
+* "Describe the schema and metadata for the largest datasets"
+* "Which datasets have not been classified yet?"
+* "Show me data assets that were modified in the last 7 days"
+
+=== Step 6: AI-Driven Tagging and Classification
+
+MCP enables the LLM to not just read the catalog, but also *enrich* it:
+
+* "Analyze the unclassified datasets and recommend appropriate tags"
+* "Apply the recommended security classification tags to datasets containing personally identifiable information"
+* "Create a summary of the security posture across all cataloged data"
+
+[IMPORTANT]
+====
+The LLM can *propose and apply* tags programmatically through MCP tool calls. This transforms catalog maintenance from a manual, transactional process into an intelligent, conversational workflow.
+====
+
+=== Step 7: Security Risk Assessment
+
+This exercise mirrors the use case described in the https://community.ibm.com/community/user/blogs/paul-llamas-virgen/2026/03/06/exploring-your-fusion-data-catalog-with-nlp[IBM Community article]:
+
+. Ask Lightspeed: "Perform a security risk assessment across all cataloged data sources. Identify datasets that may contain sensitive information and recommend classification policies."
+. Review the LLM's analysis -- it will use MCP tools to scan metadata, identify patterns, and propose tags
+. If satisfied with the recommendations, ask: "Apply the recommended security tags"
+. Finally, ask: "Generate a security posture dashboard summary for the data catalog"
+
+The result is a comprehensive, AI-generated view of your data security landscape -- produced through natural conversation rather than manual SQL queries and static reports.
+
+[[conceptual-walkthrough]]
+== Conceptual Walkthrough
+
+[NOTE]
+====
+This section covers the same concepts as the hands-on exercises above, presented as a guided walkthrough for environments where DCS or OLS is not yet available.
+====
+
+=== How DCS MCP Transforms Data Governance
+
+Traditional data catalog operations require specialized knowledge -- crafting SQL queries across schemas, manually tagging datasets, and producing static compliance reports. This process is:
+
+* *Time-consuming* -- security assessments can take days across large catalogs
+* *Error-prone* -- manual classification is inconsistent and hard to maintain
+* *Non-scalable* -- effort grows linearly with data volume
+
+With the DCS MCP Server, an AI agent can perform these same operations in minutes:
+
+[cols="1,1"]
+|===
+|Traditional Approach |MCP-Enabled Approach
+
+|Manual SQL queries to discover datasets
+|"What data sources are in the catalog?"
+
+|Hand-written tagging rules
+|"Recommend and apply tags based on content analysis"
+
+|Periodic manual security audits
+|"Perform a security risk assessment and generate a summary"
+
+|Static PDF reports
+|Interactive, conversational dashboards generated on demand
+|===
+
+=== The MCP Request Flow
+
+When a user asks a natural language question through Lightspeed:
+
+. *Lightspeed* sends the query to the *OpenAI GPT-5.4* model
+. The model determines which *MCP tools* are needed (e.g., `list_datasets`, `get_metadata`, `apply_tag`)
+. Lightspeed sends *JSON-RPC 2.0* tool invocation requests to the *DCS MCP Server*
+. The MCP Server executes the operations against the *Data Catalog*
+. Results flow back through the chain to the user as a natural language response
+
+The model's native tool-use capabilities (GPT-5.4 supports 1M token context and improved agentic workflows) make it particularly effective for multi-step catalog exploration tasks.
+
+=== Use Case: Security Risk Assessment
+
+The https://community.ibm.com/community/user/blogs/paul-llamas-virgen/2026/03/06/exploring-your-fusion-data-catalog-with-nlp[IBM Community article by Paul Llamas Virgen] demonstrates a compelling real-world scenario:
+
+. *Challenge:* Security teams lack a consolidated view of data risks across ingested datasets. Sensitive data may be poorly classified or not identified at all.
+. *MCP-Enabled Solution:*
+  * The LLM scans all catalog metadata through MCP tools
+  * It identifies datasets that may contain sensitive information (PII, financial data, credentials)
+  * It recommends classification tags based on observed patterns
+  * Tags are applied programmatically across all matching assets
+  * A security posture dashboard is generated summarizing the findings
+. *Result:* What previously required days of manual SQL queries and spreadsheet analysis is accomplished through a conversational interaction in minutes.
+
+=== Key Takeaways
+
+* *MCP transforms storage into an AI-native resource* -- data catalogs become conversational, not transactional
+* *IBM DCS speaks the language of AI agents* -- the MCP Server exposes catalog capabilities as tools that any compatible LLM can invoke
+* *Enterprise tagging becomes intelligent* -- automated classification at scale replaces manual, inconsistent tagging
+* *OpenShift Lightspeed keeps it on-cluster* -- no external LLM clients needed; workshop attendees use the same console they already know
+
+== Connection to Workshop Themes
+
+This module bridges the operational storage foundations you built in earlier modules with the AI-native future explored in xref:module-05-horizon.adoc[Module 5]:
+
+[cols="1,1"]
+|===
+|Earlier Module |Connection to Data Cataloging
+
+|xref:module-01-architecture.adoc[Module 1: Storage Architecture]
+|DCS catalogs and classifies data across the same Ceph-based storage classes you provisioned
+
+|xref:module-03-data-protection.adoc[Module 3: Data Protection]
+|Backup policies can be informed by catalog metadata -- protect sensitive data first
+
+|xref:module-05-horizon.adoc[Module 5: The 4.20+ Horizon]
+|Content-Aware Storage (CAS) builds on DCS metadata for intelligent data tiering in AI pipelines
+|===
+
+== References
+
+* https://www.ibm.com/docs/en/fusion-software/2.12.0?topic=services-data-cataloging[IBM Fusion Data Cataloging Service Documentation]
+* https://www.ibm.com/docs/en/fusion-software/2.12.0?topic=autotagging-data-cataloging-mcp-server[DCS MCP Server Documentation]
+* https://modelcontextprotocol.io/[Model Context Protocol Specification]
+* https://docs.redhat.com/en/documentation/red_hat_openshift_lightspeed/[Red Hat OpenShift Lightspeed Documentation]
+* https://community.ibm.com/community/user/blogs/paul-llamas-virgen/2026/03/06/exploring-your-fusion-data-catalog-with-nlp[Exploring your Catalog with Natural Language through MCP -- IBM Community]
+
+[TIP]
+====
+*Facilitator Notes:* This module has two paths. If Fusion 2.12+ and OLS are deployed, walk through the hands-on exercises -- the security risk assessment demo is the most impactful. If prerequisites are not met, use the conceptual walkthrough and emphasize how MCP changes the data governance paradigm. Either way, tie the DCS capabilities back to Module 1 (storage architecture) and forward to Module 5 (AI-native operations with CAS and GIE).
+====

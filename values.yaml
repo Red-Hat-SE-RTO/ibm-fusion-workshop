@@ -46,3 +46,4 @@ workshop:
   storage_class_noobaa: "openshift-storage.noobaa.io"
   fusion_namespace: "ibm-spectrum-fusion-ns"
   odf_namespace: "openshift-storage"
+  dcs_namespace: "ibm-data-cataloging"
