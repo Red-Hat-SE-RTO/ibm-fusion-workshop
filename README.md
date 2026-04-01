@@ -161,14 +161,14 @@ AgnosticD directly, the following mapping applies:
 |-----------|---------|
 | Red Hat OpenShift Container Platform | 4.18 |
 | OpenShift Data Foundation (ODF) | 4.18 |
-| IBM Storage Fusion | 2.10+ |
+| IBM Storage Fusion | 2.12 |
 | OpenShift Virtualization | 4.18 |
 | Showroom Deployer | ^2.0.0 |
 
 ## External References
 
 ### Product Documentation
-- [IBM Storage Fusion 2.10 Docs](https://www.ibm.com/docs/en/storage-fusion/2.10)
+- [IBM Storage Fusion 2.12 Docs](https://www.ibm.com/docs/en/storage-fusion/2.12)
 - [OpenShift Data Foundation 4.18 Docs](https://docs.redhat.com/en/documentation/red_hat_openshift_data_foundation/4.18)
 - [OpenShift Container Platform 4.18 Docs](https://docs.redhat.com/en/documentation/openshift_container_platform/4.18)
 
@@ -182,8 +182,8 @@ AgnosticD directly, the following mapping applies:
 - [KubeVirt Project](https://kubevirt.io/)
 
 ### Data Protection
-- [IBM Fusion Data Protection](https://www.ibm.com/docs/en/storage-fusion/2.10?topic=overview-data-protection)
-- [Change Block Tracking](https://www.ibm.com/docs/en/storage-fusion/2.10?topic=backup-change-block-tracking)
+- [IBM Fusion Data Protection](https://www.ibm.com/docs/en/storage-fusion/2.12?topic=overview-data-protection)
+- [Change Block Tracking](https://www.ibm.com/docs/en/storage-fusion/2.12?topic=backup-change-block-tracking)
 - [Ceph rbd-diff API](https://docs.ceph.com/en/latest/rbd/rbd-snapshot/#differential-backups)
 
 ### Data Cataloging & AI

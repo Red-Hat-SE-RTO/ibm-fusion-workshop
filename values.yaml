@@ -39,7 +39,7 @@ components:
 workshop:
   title: "Modern Hybrid Infrastructure: IBM Storage Fusion & OpenShift Data Foundation"
   openshift_console_url: "https://console-openshift-console.apps.ocp.n7nzt.sandbox2765.opentlc.com"
-  fusion_ui_url: "https://ibm-spectrum-fusion-ns.apps.ocp.n7nzt.sandbox2765.opentlc.com"
+  fusion_ui_url: "https://console-ibm-spectrum-fusion-ns.apps.ocp.n7nzt.sandbox2765.opentlc.com"
   storage_class_rbd: "ocs-storagecluster-ceph-rbd"
   storage_class_rbd_virt: "ocs-storagecluster-ceph-rbd-virtualization"
   storage_class_cephfs: "ocs-storagecluster-cephfs"

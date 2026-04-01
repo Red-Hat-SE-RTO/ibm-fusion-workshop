@@ -19,7 +19,7 @@ By the end of this module, you will:
 
 IBM Storage Fusion integrates with OpenShift as a set of operators managed through the Operator Lifecycle Manager (OLM). The core components are:
 
-*OpenShift Data Foundation (ODF)* provides the software-defined storage layer:
+*OpenShift Data Foundation (ODF)* provides the software-defined storage layer. When installed through IBM Storage Fusion, the ODF operators appear in the OpenShift console under the name *IBM Storage Fusion Data Foundation* -- the underlying technology is identical:
 
 * *Ceph* -- distributed storage engine providing block (RBD), file (CephFS), and object storage
 * *Rook* -- Kubernetes operator that orchestrates the Ceph cluster lifecycle
@@ -63,7 +63,7 @@ The lab environment is *pre-provisioned*. This section walks through the install
 
 . Navigate to *Operators > OperatorHub* in the OpenShift Console
 . Search for "OpenShift Data Foundation"
-. The operator is installed from the *redhat-operators* catalog source
+. When deployed alongside IBM Storage Fusion, the ODF operators are installed from the *IBM Storage Fusion Data Foundation* catalog (`isf-data-foundation-catalog`) rather than the default `redhat-operators` catalog
 . OLM creates a `Subscription` and `InstallPlan` in the `{odf_namespace}` namespace
 . The operator pods deploy and begin reconciling
 
@@ -79,25 +79,26 @@ metadata:
   name: ocs-storagecluster
   namespace: openshift-storage
 spec:
-  manageNodes: false
-  monDataDirHostPath: /var/lib/rook
   storageDeviceSets:
-    - count: 1
+    - name: fusion-storage
+      count: 1
+      replica: 3
       dataPVCTemplate:
         spec:
           accessModes:
             - ReadWriteOnce
+          volumeMode: Block
           resources:
             requests:
               storage: 512Gi
           storageClassName: gp3-csi
 ----
 
-This triggers Rook to deploy the Ceph cluster: MON daemons, OSD daemons (one per storage device), and MDS daemons for CephFS.
+The `replica: 3` field means Ceph creates three copies of each OSD across different nodes for resiliency. This triggers Rook to deploy the Ceph cluster: MON daemons, OSD daemons (one per storage device per replica), and MDS daemons for CephFS.
 
 === Step 3: IBM Storage Fusion Operator
 
-. The IBM Storage Fusion operator is installed from *Red Hat Marketplace*
+. The IBM Storage Fusion operator is installed from the *IBM operator catalog* (`ibm-operator-catalog`) on the `v2.0` channel
 . It deploys into the `{fusion_namespace}` namespace
 . Fusion discovers the underlying ODF/Ceph cluster and exposes its data protection services
 

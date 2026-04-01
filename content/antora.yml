@@ -9,7 +9,7 @@ asciidoc:
     # Static attributes (version info, storage class names)
     ocp_version: "4.18"
     odf_version: "4.18"
-    fusion_version: "2.10"
+    fusion_version: "2.12"
     storage_class_rbd: "ocs-storagecluster-ceph-rbd"
     storage_class_rbd_virt: "ocs-storagecluster-ceph-rbd-virtualization"
     storage_class_cephfs: "ocs-storagecluster-cephfs"
