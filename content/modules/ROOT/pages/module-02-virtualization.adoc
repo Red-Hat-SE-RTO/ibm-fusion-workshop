@@ -122,13 +122,19 @@ oc get vmi {user}-testvm -n {user_namespace} -o jsonpath='{.status.nodeName}' ; 
 
 Record this node name -- you'll verify the VM moves to a different node after migration.
 
+.The VM overview page shows Running status, the assigned node, and a VNC console preview.
+image::vm-running-overview.png[VM Running Overview]
+
 == Step 4: Initiate Live Migration
 
 === Via the Console
 
 . In the *VirtualMachines* list, click on `{user}-testvm`
-. Click *Actions > Migrate*
+. Click *Actions > Migration > Compute* to migrate the VM to a different node
 . Confirm the migration
+
+.Select Actions > Migration > Compute to initiate a live migration.
+image::vm-actions-migrate.png[Actions Migrate Menu]
 
 === Via the Terminal
 
@@ -155,6 +161,9 @@ oc get vmim -n {user_namespace} -w
 ----
 
 The migration goes through these phases: `Scheduling` -> `TargetReady` -> `Running` -> `Succeeded`.
+
+.While migrating, the console shows a "Migrating" status badge. The VNC console stays connected throughout.
+image::vm-migrating-status.png[VM Migrating Status]
 
 Once complete, verify the VM moved to a different node:
 
