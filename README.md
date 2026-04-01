@@ -1,5 +1,9 @@
 # Modern Hybrid Infrastructure: IBM Storage Fusion & OpenShift Data Foundation
 
+[![Build and Deploy to GitHub Pages](https://github.com/Red-Hat-SE-RTO/ibm-fusion-workshop/actions/workflows/gh-pages.yml/badge.svg)](https://github.com/Red-Hat-SE-RTO/ibm-fusion-workshop/actions/workflows/gh-pages.yml)
+
+**[View the Workshop Content](https://red-hat-se-rto.github.io/ibm-fusion-workshop)**
+
 A 2-hour hands-on workshop deployed on OpenShift via ArgoCD GitOps, following the
 [Field-Sourced Content Template](https://github.com/rhpds/field-sourced-content-template)
 Helm App of Apps pattern.
