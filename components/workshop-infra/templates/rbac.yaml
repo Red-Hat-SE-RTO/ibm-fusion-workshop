@@ -33,4 +33,55 @@ subjects:
   - apiGroup: rbac.authorization.k8s.io
     kind: User
     name: "{{ $user }}"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $user }}-terminal-admin
+  namespace: {{ $.Values.workshopInfra.userNamespacePrefix }}-{{ $user }}
+  labels:
+    app.kubernetes.io/part-of: ibm-fusion-workshop
+    workshop/user: "{{ $user }}"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: admin
+subjects:
+  - kind: ServiceAccount
+    name: showroom-{{ $user }}
+    namespace: showroom-{{ $user }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $user }}-terminal-vm-access
+  namespace: {{ $.Values.workshopInfra.userNamespacePrefix }}-{{ $user }}
+  labels:
+    app.kubernetes.io/part-of: ibm-fusion-workshop
+    workshop/user: "{{ $user }}"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubevirt.io:admin
+subjects:
+  - kind: ServiceAccount
+    name: showroom-{{ $user }}
+    namespace: showroom-{{ $user }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $user }}-terminal-storage-view
+  namespace: openshift-storage
+  labels:
+    app.kubernetes.io/part-of: ibm-fusion-workshop
+    workshop/user: "{{ $user }}"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+subjects:
+  - kind: ServiceAccount
+    name: showroom-{{ $user }}
+    namespace: showroom-{{ $user }}
 {{- end }}
