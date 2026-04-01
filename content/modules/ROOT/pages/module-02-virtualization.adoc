@@ -1,0 +1,200 @@
+= Module 2: OpenShift Virtualization & RWX Live Migration
+:navtitle: Module 2: Virtualization & Live Migration
+
+[sidebar]
+****
+*Duration:* 30 minutes +
+*Type:* Hands-on Lab
+****
+
+== Learning Objectives
+
+By the end of this module, you will:
+
+* Deploy a Linux Virtual Machine using OpenShift Virtualization
+* Execute and monitor a non-disruptive live migration
+* Understand why RWX storage is required for workload mobility
+
+== Step 1: Navigate to Virtualization
+
+. Open the OpenShift Console: {openshift_console_url}
+. Select your project: `{user_namespace}`
+. From the left menu, navigate to *Virtualization > VirtualMachines*
+
+== Step 2: Create a Virtual Machine
+
+. Click *Create VirtualMachine*
+. Select *From template*
+. Choose *Fedora VM* (or the available Linux template)
+. Configure the VM:
++
+[cols="1,2"]
+|===
+|Name |`{user}-testvm`
+|Namespace |`{user_namespace}`
+|===
+
+. Click *Customize VirtualMachine* before creating
+. Under *Storage*, verify or change the disk settings:
+** *Storage Class:* `{storage_class_rbd_virt}`
+** *Access Mode:* Should show *ReadWriteMany (RWX)*
+** *Volume Mode:* Block
+. Click *Create VirtualMachine*
+
+[NOTE]
+====
+The storage class `{storage_class_rbd_virt}` provides RWX Block volumes backed by Ceph RBD. This is what makes live migration possible -- the VM's disk can be accessed from multiple nodes simultaneously.
+====
+
+Alternatively, create the VM from the terminal:
+
+[source,bash,role=execute]
+----
+cat <<EOF | oc apply -f -
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: {user}-testvm
+  namespace: {user_namespace}
+  labels:
+    app: {user}-testvm
+spec:
+  running: true
+  template:
+    metadata:
+      labels:
+        kubevirt.io/vm: {user}-testvm
+    spec:
+      domain:
+        devices:
+          disks:
+            - disk:
+                bus: virtio
+              name: rootdisk
+          interfaces:
+            - masquerade: {}
+              name: default
+        resources:
+          requests:
+            memory: 1Gi
+      networks:
+        - name: default
+          pod: {}
+      volumes:
+        - dataVolume:
+            name: {user}-testvm-rootdisk
+          name: rootdisk
+  dataVolumeTemplates:
+    - metadata:
+        name: {user}-testvm-rootdisk
+      spec:
+        source:
+          registry:
+            url: "docker://quay.io/containerdisks/fedora:latest"
+        pvc:
+          accessModes:
+            - ReadWriteMany
+          volumeMode: Block
+          resources:
+            requests:
+              storage: 10Gi
+          storageClassName: {storage_class_rbd_virt}
+EOF
+----
+
+== Step 3: Wait for the VM to Start
+
+Monitor the VM status:
+
+[source,bash,role=execute]
+----
+oc get vm {user}-testvm -n {user_namespace} -w
+----
+
+Wait until `READY` shows `True` and `STATUS` shows `Running`. This may take 2-3 minutes as the container disk image is imported.
+
+Check which node the VM is running on:
+
+[source,bash,role=execute]
+----
+oc get vmi {user}-testvm -n {user_namespace} -o jsonpath='{.status.nodeName}' ; echo
+----
+
+Record this node name -- you'll verify the VM moves to a different node after migration.
+
+== Step 4: Initiate Live Migration
+
+=== Via the Console
+
+. In the *VirtualMachines* list, click on `{user}-testvm`
+. Click *Actions > Migrate*
+. Confirm the migration
+
+=== Via the Terminal
+
+[source,bash,role=execute]
+----
+cat <<EOF | oc apply -f -
+apiVersion: kubevirt.io/v1
+kind: VirtualMachineInstanceMigration
+metadata:
+  name: {user}-testvm-migration
+  namespace: {user_namespace}
+spec:
+  vmiName: {user}-testvm
+EOF
+----
+
+== Step 5: Monitor the Migration
+
+Watch the migration progress:
+
+[source,bash,role=execute]
+----
+oc get vmim -n {user_namespace} -w
+----
+
+The migration goes through these phases: `Scheduling` -> `TargetReady` -> `Running` -> `Succeeded`.
+
+Once complete, verify the VM moved to a different node:
+
+[source,bash,role=execute]
+----
+oc get vmi {user}-testvm -n {user_namespace} -o jsonpath='{.status.nodeName}' ; echo
+----
+
+[IMPORTANT]
+====
+The VM changed hosts *without downtime*. The guest operating system continued running throughout. This is only possible because:
+
+. The PVC uses `{storage_class_rbd_virt}` with *RWX Block* access mode
+. Both the source and target nodes can mount the same Ceph RBD volume simultaneously
+. KubeVirt copies the VM memory state over an encrypted TLS connection
+
+Attempting this with a standard *RWO* volume would *fail* -- the VM would be permanently locked to a single physical node.
+====
+
+== Clean Up (Optional)
+
+If you want to clean up before Module 3:
+
+[source,bash,role=execute]
+----
+oc delete vmim {user}-testvm-migration -n {user_namespace} --ignore-not-found
+----
+
+[WARNING]
+====
+Do *not* delete the VM itself -- you will use it in Module 3 for data protection.
+====
+
+== References
+
+* https://docs.redhat.com/en/documentation/openshift_container_platform/{ocp_version}/html/virtualization[OpenShift Virtualization Documentation]
+* https://docs.redhat.com/en/documentation/openshift_container_platform/{ocp_version}/html/virtualization/live-migration[Live Migration with Shared Storage]
+* https://kubevirt.io/[KubeVirt Project]
+
+[TIP]
+====
+*Facilitator Notes:* While the VM spins up and migrates, explain the mechanics: TLS encryption for migration traffic, parallel migration limits, and cluster capacity planning. Emphasize that a standard RWO volume would fail this test, permanently locking the VM to one node.
+====

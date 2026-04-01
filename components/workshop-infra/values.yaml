@@ -1,0 +1,7 @@
+deployer:
+  domain: ""
+
+users: []
+
+workshopInfra:
+  userNamespacePrefix: "workshop"

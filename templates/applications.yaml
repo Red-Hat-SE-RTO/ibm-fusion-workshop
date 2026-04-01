@@ -1,0 +1,93 @@
+{{- if .Values.components.workshopInfra.enabled }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: workshop-infra
+  namespace: {{ .Values.argocd.namespace }}
+  labels:
+    {{- include "workshop.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: {{ .Values.gitops.repoUrl }}
+    targetRevision: {{ .Values.gitops.revision }}
+    path: components/workshop-infra
+    helm:
+      valuesObject:
+        deployer:
+          domain: {{ .Values.deployer.domain }}
+        users:
+          {{- toYaml .Values.users | nindent 10 }}
+        workshopInfra:
+          {{- toYaml .Values.components.workshopInfra | nindent 10 }}
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+{{- end }}
+{{- if .Values.components.showroom.enabled }}
+{{- range $user := .Values.users }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: showroom-{{ $user }}
+  namespace: {{ $.Values.argocd.namespace }}
+  labels:
+    {{- include "workshop.labels" $ | nindent 4 }}
+    workshop/user: "{{ $user }}"
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: {{ $.Values.components.showroom.chartRepo }}
+    chart: showroom
+    targetRevision: {{ $.Values.components.showroom.chartVersion }}
+    helm:
+      valuesObject:
+        deployer:
+          domain: {{ $.Values.deployer.domain }}
+        general:
+          guid: {{ $user }}
+        namespace:
+          create: true
+          name: showroom-{{ $user }}
+        documentation:
+          repoUrl: {{ $.Values.components.showroom.content.repoUrl }}
+          repoRef: {{ $.Values.components.showroom.content.repoRef }}
+        content:
+          user_data: |
+            user: {{ $user }}
+            user_namespace: {{ $.Values.components.workshopInfra.userNamespacePrefix }}-{{ $user }}
+            cluster_domain: {{ $.Values.deployer.domain }}
+            openshift_console_url: {{ $.Values.workshop.openshift_console_url }}
+            fusion_ui_url: {{ $.Values.workshop.fusion_ui_url }}
+            storage_class_rbd: {{ $.Values.workshop.storage_class_rbd }}
+            storage_class_rbd_virt: {{ $.Values.workshop.storage_class_rbd_virt }}
+            storage_class_cephfs: {{ $.Values.workshop.storage_class_cephfs }}
+            storage_class_noobaa: {{ $.Values.workshop.storage_class_noobaa }}
+            fusion_namespace: {{ $.Values.workshop.fusion_namespace }}
+            odf_namespace: {{ $.Values.workshop.odf_namespace }}
+            workshop_title: {{ $.Values.workshop.title | quote }}
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+{{- end }}
+{{- end }}

@@ -1,0 +1,36 @@
+{{- range $user := .Values.users }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $user }}-admin
+  namespace: {{ $.Values.workshopInfra.userNamespacePrefix }}-{{ $user }}
+  labels:
+    app.kubernetes.io/part-of: ibm-fusion-workshop
+    workshop/user: "{{ $user }}"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: admin
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: User
+    name: "{{ $user }}"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $user }}-vm-access
+  namespace: {{ $.Values.workshopInfra.userNamespacePrefix }}-{{ $user }}
+  labels:
+    app.kubernetes.io/part-of: ibm-fusion-workshop
+    workshop/user: "{{ $user }}"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubevirt.io:admin
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: User
+    name: "{{ $user }}"
+{{- end }}

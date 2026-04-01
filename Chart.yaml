@@ -1,0 +1,8 @@
+apiVersion: v2
+name: ibm-fusion-workshop
+description: >-
+  Multi-user workshop for IBM Storage Fusion & OpenShift Data Foundation.
+  Deploys Showroom lab-guide instances and per-user namespaces via ArgoCD App of Apps.
+type: application
+version: 1.0.0
+appVersion: "2.10"

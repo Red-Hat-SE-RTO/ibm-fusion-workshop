@@ -1,0 +1,129 @@
+= External References
+:navtitle: References
+
+== Product Documentation
+
+[cols="1,2"]
+|===
+|Resource |URL
+
+|IBM Storage Fusion {fusion_version} Documentation
+|https://www.ibm.com/docs/en/storage-fusion/{fusion_version}
+
+|IBM Storage Fusion Knowledge Center
+|https://www.ibm.com/docs/en/storage-fusion
+
+|OpenShift Data Foundation {odf_version} Documentation
+|https://docs.redhat.com/en/documentation/red_hat_openshift_data_foundation/{odf_version}
+
+|Red Hat OpenShift Container Platform {ocp_version} Documentation
+|https://docs.redhat.com/en/documentation/openshift_container_platform/{ocp_version}
+|===
+
+== Storage & Data Services
+
+[cols="1,2"]
+|===
+|Resource |URL
+
+|Ceph Storage Architecture
+|https://docs.ceph.com/en/latest/architecture/
+
+|Ceph RBD (RADOS Block Device) Documentation
+|https://docs.ceph.com/en/latest/rbd/
+
+|Ceph RBD Differential Backups (rbd diff)
+|https://docs.ceph.com/en/latest/rbd/rbd-snapshot/#differential-backups
+
+|Multicloud Object Gateway (NooBaa)
+|https://www.noobaa.io/
+
+|ODF Storage Classes Reference
+|https://docs.redhat.com/en/documentation/red_hat_openshift_data_foundation/{odf_version}/html/managing_and_allocating_storage_resources/managing-storage-classes
+|===
+
+== Virtualization
+
+[cols="1,2"]
+|===
+|Resource |URL
+
+|OpenShift Virtualization {ocp_version} Documentation
+|https://docs.redhat.com/en/documentation/openshift_container_platform/{ocp_version}/html/virtualization
+
+|Live Migration with Shared Storage
+|https://docs.redhat.com/en/documentation/openshift_container_platform/{ocp_version}/html/virtualization/live-migration
+
+|KubeVirt Project (upstream)
+|https://kubevirt.io/
+|===
+
+== Data Protection
+
+[cols="1,2"]
+|===
+|Resource |URL
+
+|IBM Fusion Data Protection Overview
+|https://www.ibm.com/docs/en/storage-fusion/{fusion_version}?topic=overview-data-protection
+
+|Change Block Tracking (CBT) in Fusion
+|https://www.ibm.com/docs/en/storage-fusion/{fusion_version}?topic=backup-change-block-tracking
+|===
+
+== Forward-Looking (4.20+)
+
+[cols="1,2"]
+|===
+|Resource |URL
+
+|Kubernetes Descheduler
+|https://github.com/kubernetes-sigs/descheduler
+
+|Kubernetes Gateway API
+|https://gateway-api.sigs.k8s.io/
+
+|IBM Content-Aware Storage (CAS)
+|https://www.ibm.com/products/storage-fusion
+
+|OpenShift Container Platform Release Notes
+|https://docs.redhat.com/en/documentation/openshift_container_platform/
+|===
+
+== Operator Lifecycle & Deployment
+
+[cols="1,2"]
+|===
+|Resource |URL
+
+|Operator Lifecycle Manager (OLM)
+|https://olm.operatorframework.io/
+
+|Red Hat Marketplace
+|https://marketplace.redhat.com/
+
+|ArgoCD / OpenShift GitOps
+|https://docs.redhat.com/en/documentation/red_hat_openshift_gitops/
+|===
+
+== Workshop Infrastructure
+
+[cols="1,2"]
+|===
+|Resource |URL
+
+|Showroom Deployer (Helm chart)
+|https://github.com/rhpds/showroom-deployer
+
+|Showroom Content Template
+|https://github.com/rhpds/showroom_template_default
+
+|Field-Sourced Content Template
+|https://github.com/rhpds/field-sourced-content-template
+
+|Red Hat Demo Platform (RHDP)
+|https://demo.redhat.com/
+
+|Antora Documentation Framework
+|https://docs.antora.org/
+|===

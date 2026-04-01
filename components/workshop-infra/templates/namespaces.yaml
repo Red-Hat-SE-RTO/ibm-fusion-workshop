@@ -1,0 +1,13 @@
+{{- range $user := .Values.users }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $.Values.workshopInfra.userNamespacePrefix }}-{{ $user }}
+  labels:
+    app.kubernetes.io/part-of: ibm-fusion-workshop
+    workshop/user: "{{ $user }}"
+  annotations:
+    openshift.io/description: "Workshop namespace for {{ $user }}"
+    openshift.io/display-name: "Workshop - {{ $user }}"
+{{- end }}

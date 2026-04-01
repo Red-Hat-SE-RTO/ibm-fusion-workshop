@@ -1,0 +1,6 @@
+apiVersion: v2
+name: workshop-infra
+description: Per-user namespaces and RBAC for the IBM Fusion workshop hands-on labs
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

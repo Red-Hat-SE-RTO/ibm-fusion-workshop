@@ -1,0 +1,138 @@
+= Module 1: Architecture Tour & Storage Provisioning
+:navtitle: Module 1: Architecture Tour
+
+[sidebar]
+****
+*Duration:* 15 minutes +
+*Type:* Guided Tour
+****
+
+== Learning Objectives
+
+By the end of this module, you will:
+
+* Validate the pre-provisioned IBM Storage Fusion architecture
+* Understand the critical difference between RWO and RWX storage classes
+* Know which storage class to use for VMs vs. backups
+
+== Activity 1: Access the IBM Fusion UI
+
+. Open the OpenShift Console: {openshift_console_url}
+. Click the Application Picker (grid icon) in the top navigation bar
+. Select *IBM Storage Fusion* from the list
+. The Fusion dashboard opens at: {fusion_ui_url}
+
+Verify that the Fusion UI shows:
+
+* Active storage cluster with healthy status
+* Data protection services available
+* Connected ODF backend
+
+== Activity 2: Inspect Storage Classes
+
+From the OpenShift Console, navigate to *Storage > StorageClasses*. You will see several storage classes provided by ODF.
+
+=== VM Block Storage (RWX)
+
+[source,bash,role=execute]
+----
+oc get sc {storage_class_rbd_virt} -o yaml
+----
+
+Key properties of `{storage_class_rbd_virt}`:
+
+[cols="1,2"]
+|===
+|Provisioner |`openshift-storage.rbd.csi.ceph.com`
+|Volume Mode |Block
+|Access Modes |*ReadWriteMany (RWX)*
+|Reclaim Policy |Delete
+|===
+
+[IMPORTANT]
+====
+*RWX is the critical enabler for live migration.* When a PVC has RWX access mode with Block volume mode, the disk can be mounted simultaneously on multiple nodes. This allows a VM to migrate from one node to another without detaching and reattaching its storage.
+
+With a standard RWO volume, the VM would be *permanently locked to a single node*.
+====
+
+=== Standard Block Storage (RWO)
+
+[source,bash,role=execute]
+----
+oc get sc {storage_class_rbd} -o yaml
+----
+
+`{storage_class_rbd}` provides standard block storage with *ReadWriteOnce* access. Suitable for databases and stateful applications that don't need multi-node access.
+
+=== Object Storage (MCG)
+
+[source,bash,role=execute]
+----
+oc get sc {storage_class_noobaa} -o yaml
+----
+
+`{storage_class_noobaa}` provides S3-compatible object storage via the Multicloud Object Gateway (NooBaa). In Module 3, this will be the backup target destination.
+
+=== Filesystem Storage
+
+[source,bash,role=execute]
+----
+oc get sc {storage_class_cephfs} -o yaml
+----
+
+`{storage_class_cephfs}` provides POSIX-compliant shared filesystem storage via CephFS. Suitable for applications needing shared file access (e.g., CMS, shared data directories).
+
+== Storage Class Quick Reference
+
+[cols="2,1,1,2"]
+|===
+|Storage Class |Type |Access |Use Case
+
+|`{storage_class_rbd_virt}`
+|Block
+|RWX
+|Virtual Machines (live migration)
+
+|`{storage_class_rbd}`
+|Block
+|RWO
+|Databases, stateful apps
+
+|`{storage_class_cephfs}`
+|Filesystem
+|RWX
+|Shared file storage
+
+|`{storage_class_noobaa}`
+|Object (S3)
+|N/A
+|Backups, object storage
+|===
+
+== Verify the Cluster Health
+
+[source,bash,role=execute]
+----
+oc get storagecluster -n {odf_namespace}
+----
+
+Expected output: `Phase: Ready`
+
+[source,bash,role=execute]
+----
+oc get cephcluster -n {odf_namespace} -o jsonpath='{.items[0].status.ceph.health}' ; echo
+----
+
+Expected output: `HEALTH_OK`
+
+== References
+
+* https://docs.redhat.com/en/documentation/red_hat_openshift_data_foundation/{odf_version}/html/managing_and_allocating_storage_resources/managing-storage-classes[ODF Storage Classes Reference]
+* https://docs.ceph.com/en/latest/rbd/[Ceph RBD Documentation]
+* https://www.noobaa.io/[Multicloud Object Gateway (NooBaa)]
+
+[TIP]
+====
+*Facilitator Notes:* Keep this section moving quickly. Draw a sharp distinction between filesystem storage and raw block device exposure for VMs. Make sure attendees understand that the MCG (`{storage_class_noobaa}`) will be the target for backups in Module 3.
+====

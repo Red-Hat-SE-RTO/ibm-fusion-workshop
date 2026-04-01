@@ -1,0 +1,135 @@
+= Module 0: IBM Storage Fusion Installation & Architecture
+:navtitle: Module 0: Installation & Architecture
+
+[sidebar]
+****
+*Duration:* 30 minutes +
+*Type:* Presentation / Instructor-led Demo
+****
+
+== Learning Objectives
+
+By the end of this module, you will:
+
+* Understand the core architecture and components of IBM Storage Fusion and OpenShift Data Foundation
+* Learn the operator-driven installation process on OpenShift
+* Recognize how Ceph and the Multicloud Object Gateway (MCG) underpin the storage layer
+
+== Architecture Overview
+
+IBM Storage Fusion integrates with OpenShift as a set of operators managed through the Operator Lifecycle Manager (OLM). The core components are:
+
+*OpenShift Data Foundation (ODF)* provides the software-defined storage layer:
+
+* *Ceph* -- distributed storage engine providing block (RBD), file (CephFS), and object storage
+* *Rook* -- Kubernetes operator that orchestrates the Ceph cluster lifecycle
+* *Multicloud Object Gateway (MCG / NooBaa)* -- S3-compatible object storage for backups and data services
+
+*IBM Storage Fusion* adds enterprise data services on top of ODF:
+
+* Intelligent data protection with Change Block Tracking (CBT)
+* Application-aware backup and restore
+* Unified management UI integrated into the OpenShift console
+
+=== Component Layout
+
+----
+OpenShift Container Platform {ocp_version}
+├── openshift-storage namespace
+│   ├── rook-ceph-operator
+│   ├── ocs-operator
+│   ├── odf-operator
+│   ├── mcg-operator (NooBaa)
+│   ├── cephcsi-operator
+│   └── StorageCluster (Ceph OSDs, MONs, MDS)
+├── {fusion_namespace} namespace
+│   ├── isf-operator (IBM Storage Fusion)
+│   └── ibm-usage-metering-operator
+└── Storage Classes
+    ├── {storage_class_rbd} (Block / RWO)
+    ├── {storage_class_rbd_virt} (Block / RWX for VMs)
+    ├── {storage_class_cephfs} (Filesystem / RWX)
+    └── {storage_class_noobaa} (Object / S3)
+----
+
+== Instructor-Led Demo: Operator Installation Walkthrough
+
+[NOTE]
+====
+The lab environment is *pre-provisioned*. This section walks through the installation process conceptually so you understand how the operators were deployed.
+====
+
+=== Step 1: ODF Operator via OLM
+
+. Navigate to *Operators > OperatorHub* in the OpenShift Console
+. Search for "OpenShift Data Foundation"
+. The operator is installed from the *redhat-operators* catalog source
+. OLM creates a `Subscription` and `InstallPlan` in the `{odf_namespace}` namespace
+. The operator pods deploy and begin reconciling
+
+=== Step 2: Storage Cluster Instantiation
+
+Once the ODF operator is running, a `StorageCluster` custom resource is created:
+
+[source,yaml]
+----
+apiVersion: ocs.openshift.io/v1
+kind: StorageCluster
+metadata:
+  name: ocs-storagecluster
+  namespace: openshift-storage
+spec:
+  manageNodes: false
+  monDataDirHostPath: /var/lib/rook
+  storageDeviceSets:
+    - count: 1
+      dataPVCTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 512Gi
+          storageClassName: gp3-csi
+----
+
+This triggers Rook to deploy the Ceph cluster: MON daemons, OSD daemons (one per storage device), and MDS daemons for CephFS.
+
+=== Step 3: IBM Storage Fusion Operator
+
+. The IBM Storage Fusion operator is installed from *Red Hat Marketplace*
+. It deploys into the `{fusion_namespace}` namespace
+. Fusion discovers the underlying ODF/Ceph cluster and exposes its data protection services
+
+== Key Concepts
+
+=== Operator Lifecycle Manager (OLM)
+
+OLM automates operator installation, upgrades, and RBAC on OpenShift. Key resources:
+
+* *CatalogSource* -- defines the operator registry (e.g. `redhat-operators`)
+* *Subscription* -- declares which operator and channel to track
+* *InstallPlan* -- the concrete set of resources to create for an operator version
+* *ClusterServiceVersion (CSV)* -- describes the operator's capabilities and requirements
+
+=== Why Operators Matter
+
+Operators encode operational knowledge as software. Instead of manually deploying and configuring Ceph, the Rook operator:
+
+* Provisions storage daemons across nodes
+* Handles failure recovery and rebalancing
+* Manages upgrades with minimal disruption
+* Exposes storage via standard Kubernetes StorageClasses
+
+== References
+
+* https://www.ibm.com/docs/en/storage-fusion/{fusion_version}[IBM Storage Fusion {fusion_version} Documentation]
+* https://docs.redhat.com/en/documentation/red_hat_openshift_data_foundation/{odf_version}[OpenShift Data Foundation {odf_version} Documentation]
+* https://docs.ceph.com/en/latest/architecture/[Ceph Storage Architecture]
+* https://olm.operatorframework.io/[Operator Lifecycle Manager]
+* https://marketplace.redhat.com/[Red Hat Marketplace]
+
+[TIP]
+====
+*Facilitator Notes:* Since the lab environments are pre-provisioned, this is a conceptual and demo-driven module. Focus on the "why" and "how" of the architecture. Architects will care about the component layout and integration points; Admins will care about the Operator installation flow and Day-0 configuration.
+====

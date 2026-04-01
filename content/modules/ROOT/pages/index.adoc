@@ -1,0 +1,92 @@
+= Modern Hybrid Infrastructure: IBM Storage Fusion & OpenShift Data Foundation
+:page-layout: home
+
+== Welcome
+
+This 2-hour technical workshop provides guided, hands-on experience with *IBM Storage Fusion {fusion_version}* and *OpenShift Data Foundation {odf_version}* running on *Red Hat OpenShift Container Platform {ocp_version}*.
+
+You will work with a live, pre-provisioned environment to deploy virtual machines, execute live migrations, and configure modern data protection -- all backed by software-defined Ceph storage.
+
+== Your Environment
+
+[cols="1,2"]
+|===
+|OpenShift Console
+|{openshift_console_url}
+
+|IBM Fusion UI
+|{fusion_ui_url}
+
+|Your Username
+|`{user}`
+
+|Your Namespace
+|`{user_namespace}`
+
+|Cluster Apps Domain
+|`{cluster_domain}`
+|===
+
+== Who Will Benefit Most?
+
+* *Cloud and Kubernetes Application Administrators* -- persistent storage integration and backup orchestration
+* *Storage Engineers and Architects* -- software-defined paradigms (Ceph, MCG) and cloud-native data protection
+* *Virtualization Infrastructure Managers* -- OpenShift Virtualization proof-of-value with live migration and RWX storage
+
+== Prerequisites
+
+* Baseline understanding of Kubernetes primitives (Pods, Deployments, Namespaces, PVCs)
+* Basic command-line proficiency with `oc` and `kubectl`
+* Pre-provisioned RHDP environment (already running)
+
+== Workshop Agenda
+
+[cols="1,1,3,1"]
+|===
+|Time |Section |Description |Type
+
+|5 min
+|Introduction
+|Welcome and Environment Access
+|Administrative
+
+|30 min
+|xref:module-00-installation.adoc[Module 0]
+|Installation & Architecture
+|Presentation/Demo
+
+|15 min
+|xref:module-01-architecture.adoc[Module 1]
+|Architecture Tour & Storage Provisioning
+|Guided Tour
+
+|30 min
+|xref:module-02-virtualization.adoc[Module 2]
+|OpenShift Virtualization & RWX Live Migration
+|Hands-on Lab
+
+|25 min
+|xref:module-03-data-protection.adoc[Module 3]
+|Modern Data Protection (CBT & Backups)
+|Hands-on Lab
+
+|10 min
+|xref:module-04-horizon.adoc[Module 4]
+|The 4.20+ Horizon: AI & Autonomic Operations
+|Presentation
+
+|5 min
+|xref:conclusion.adoc[Conclusion]
+|Q&A and Wrap-up
+|Discussion
+|===
+
+== Technology & Version Information
+
+[cols="1,2"]
+|===
+|Platform |Red Hat OpenShift Container Platform {ocp_version}
+|Storage Core |OpenShift Data Foundation (ODF) {odf_version}
+|Data Services |IBM Storage Fusion {fusion_version}
+|Virtualization |OpenShift Virtualization {ocp_version}
+|===

@@ -1,0 +1,112 @@
+= Module 4: The 4.20+ Horizon -- AI & Autonomic Operations
+:navtitle: Module 4: The 4.20+ Horizon
+
+[sidebar]
+****
+*Duration:* 10 minutes +
+*Type:* Presentation Only
+****
+
+== Learning Objectives
+
+By the end of this module, you will:
+
+* Understand Autonomic Resource Optimization via CPU Load-Aware Rebalancing
+* Conceptually grasp how OpenShift is adapting to Generative AI workloads
+
+== Autonomic Virtualization: The Descheduler Evolution
+
+=== What You Did Manually in Module 2
+
+In Module 2, you manually initiated a live migration of your VM. You decided *when* and *where* to move the workload. In production, this manual approach doesn't scale.
+
+=== What's Coming in 4.20+
+
+The OpenShift Descheduler is evolving to use *CPU Pressure Stall Information (PSI)* to automatically detect overloaded nodes and trigger live migrations.
+
+*How PSI-Based Rebalancing Works:*
+
+. The Descheduler monitors CPU PSI metrics on all nodes
+. When a node's PSI "some" threshold exceeds a configurable limit, it indicates workloads are stalling due to CPU contention
+. The Descheduler identifies the best candidate VMs to migrate
+. Live migrations are automatically initiated to balanced nodes
+. The result: *the platform automatically performs the exact live migration you did manually in Module 2*
+
+----
+Today (Manual):
+  Admin notices node overloaded → Decides which VM to move → Triggers migration
+
+4.20+ (Autonomic):
+  PSI metrics detect contention → Descheduler selects VM → Auto-triggers migration
+----
+
+This transforms VM management from *reactive and manual* to *proactive and autonomous*.
+
+== AI Workload Optimization
+
+=== The GPU Scheduling Problem
+
+Standard HTTP load balancing distributes requests round-robin across replicas. This works well for stateless web applications, but *fails catastrophically* for Large Language Models (LLMs) because:
+
+* *LLM inference is stateful* -- each request depends on a KV-cache loaded in GPU memory
+* *GPU memory is scarce and expensive* -- a single A100 costs $10,000+
+* *Token generation is sequential* -- you can't parallelize a single request across GPUs
+* *Batch size matters* -- GPU utilization plummets when batches are too small or too large
+
+A naive round-robin distributes requests to GPUs that may not have the right model loaded, triggering expensive model swaps that waste GPU cycles.
+
+=== Gateway API Inference Extension (GIE)
+
+The *Gateway API Inference Extension* solves this by adding inference-aware routing:
+
+* Routes requests to GPUs that already have the target model loaded
+* Respects GPU memory pressure and queue depth
+* Enables model-aware autoscaling -- scale up when queue depth exceeds thresholds
+* Integrates with Kubernetes Gateway API (the successor to Ingress)
+
+=== IBM Content-Aware Storage (CAS)
+
+For AI training pipelines, the storage bottleneck is often data loading. *IBM Content-Aware Storage* addresses this:
+
+* *Semantic caching* -- frequently accessed training data is cached closer to compute
+* *Intelligent tiering* -- hot data automatically moves to faster storage (NVMe) while cold data stays on capacity tiers
+* *Pipeline-aware prefetching* -- storage predicts the next data batches based on the training loop pattern
+
+Together, GIE and CAS optimize the two most expensive resources in an AI infrastructure: *GPU compute* and *high-performance storage I/O*.
+
+== The Convergence Story
+
+What you experienced today maps directly to the 4.20+ roadmap:
+
+[cols="1,1,1"]
+|===
+|Today (This Workshop) |Tomorrow (4.20+) |Benefit
+
+|Manual live migration
+|PSI-based Descheduler auto-migration
+|Autonomic VM operations
+
+|Manual backup triggers
+|Policy-driven, CBT-optimized schedules
+|Zero-touch data protection
+
+|Static storage classes
+|Content-Aware Storage with intelligent tiering
+|AI-optimized data pipelines
+
+|Standard HTTP routing
+|Gateway API Inference Extension
+|GPU-efficient LLM serving
+|===
+
+== References
+
+* https://github.com/kubernetes-sigs/descheduler[Kubernetes Descheduler]
+* https://gateway-api.sigs.k8s.io/[Kubernetes Gateway API]
+* https://www.ibm.com/products/storage-fusion[IBM Storage Fusion -- Content-Aware Storage]
+* https://docs.redhat.com/en/documentation/openshift_container_platform/[OpenShift Container Platform Documentation]
+
+[TIP]
+====
+*Facilitator Notes:* Keep this highly strategic. Hit two main points: (1) The 4.20 Descheduler will use CPU PSI to automatically trigger the live migrations attendees just performed manually. (2) Standard HTTP load balancing fails for LLMs -- introduce GIE and CAS as solutions for optimizing GPU investments.
+====

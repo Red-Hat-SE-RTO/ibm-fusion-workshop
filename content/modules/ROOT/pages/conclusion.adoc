@@ -1,0 +1,74 @@
+= Conclusion: Strategic Synthesis
+:navtitle: Conclusion & Wrap-up
+
+[sidebar]
+****
+*Duration:* 5 minutes +
+*Type:* Discussion / Q&A
+****
+
+== What You Accomplished
+
+In this workshop, you:
+
+[cols="1,2,1"]
+|===
+|Module |Achievement |Key Technology
+
+|xref:module-00-installation.adoc[Module 0]
+|Understood the operator-driven architecture
+|OLM, ODF, IBM Fusion
+
+|xref:module-01-architecture.adoc[Module 1]
+|Validated storage classes and the RWO/RWX distinction
+|Ceph RBD, MCG, CephFS
+
+|xref:module-02-virtualization.adoc[Module 2]
+|Deployed a VM and executed a live migration
+|OpenShift Virtualization, RWX Block
+
+|xref:module-03-data-protection.adoc[Module 3]
+|Configured backup policy and ran an on-demand backup
+|CBT, rbd-diff, MCG
+
+|xref:module-04-horizon.adoc[Module 4]
+|Explored the 4.20+ roadmap
+|Descheduler PSI, GIE, CAS
+|===
+
+== The Core Message
+
+OpenShift Data Foundation and IBM Storage Fusion transform storage from a *passive receptacle* into an *intelligent, highly mobile data fabric* ready for both legacy VMs and modern AI.
+
+The three pillars you experienced today:
+
+*Mobility*:: RWX Ceph storage enables VMs to move freely across nodes -- today manually, soon autonomically via the PSI-based Descheduler.
+
+*Protection*:: Change Block Tracking via the Ceph rbd-diff API achieves incremental-forever backups that bypass the CSI layer entirely, reducing backup windows from hours to minutes.
+
+*Intelligence*:: The 4.20+ roadmap brings Content-Aware Storage for AI pipelines and Gateway API Inference Extension for GPU-efficient LLM serving.
+
+== Next Steps
+
+* *Explore further:* Review the xref:references.adoc[External References] for deep-dive documentation
+* *Try in production:* Request a longer RHDP environment to test multi-VM backup policies with scheduled CBT
+* *Plan for 4.20+:* Evaluate the Descheduler and Gateway API for your AI/ML infrastructure roadmap
+* *Provide feedback:* Share your workshop experience with your facilitator
+
+== Q&A
+
+[NOTE]
+====
+This is the open discussion period. Facilitators should be prepared to address questions on:
+
+* Production sizing and capacity planning for ODF
+* IBM Fusion licensing and support tiers
+* Migration paths from legacy storage arrays
+* AI infrastructure planning with OpenShift
+====
+
+== Thank You
+
+Thank you for participating in the *Modern Hybrid Infrastructure* workshop. The skills you practiced today -- VM deployment, live migration, and intelligent data protection -- are directly applicable to production OpenShift environments.
+
+Your lab environment will remain available for the duration of the RHDP reservation.

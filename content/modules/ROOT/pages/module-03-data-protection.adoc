@@ -1,0 +1,152 @@
+= Module 3: Modern Data Protection (CBT & Backups)
+:navtitle: Module 3: Modern Data Protection
+
+[sidebar]
+****
+*Duration:* 25 minutes +
+*Type:* Hands-on Lab
+****
+
+== Learning Objectives
+
+By the end of this module, you will:
+
+* Configure an intelligent backup policy targeting Object Storage
+* Understand how Change Block Tracking (CBT) drastically reduces backup windows
+* Execute an on-demand backup and monitor its completion
+
+== Conceptual Background
+
+=== Change Block Tracking (CBT)
+
+Traditional backup approaches scan the entire filesystem to determine which files have changed -- a computationally expensive process that scales poorly with volume size.
+
+IBM Storage Fusion {fusion_version} uses *Change Block Tracking* via the Ceph `rbd-diff` API to:
+
+* Track changes at the *block level*, not the filesystem level
+* Bypass the CSI layer entirely for differential calculations
+* Achieve an *incremental-forever* architecture where only changed blocks are backed up after the initial full backup
+
+This means:
+
+* *First backup:* Full copy of all blocks
+* *Subsequent backups:* Only blocks that changed since the last backup -- determined in milliseconds by the Ceph `rbd-diff` API
+
+=== Backup Target: Multicloud Object Gateway (MCG)
+
+The backup data is stored in S3-compatible object storage provided by the Multicloud Object Gateway (NooBaa). In this lab, the MCG is running locally in the `{odf_namespace}` namespace.
+
+== Step 1: Access the IBM Fusion Data Protection UI
+
+. Open the IBM Fusion UI: {fusion_ui_url}
+. Navigate to *Data Protection > Policies* (or equivalent menu item)
+
+Alternatively, you can access it from the OpenShift Console via the Application Picker.
+
+== Step 2: Create a Backup Policy
+
+. Click *Create Policy* (or *Add Policy*)
+. Configure the policy:
++
+[cols="1,2"]
+|===
+|Policy Name |`{user}-vm-backup-policy`
+|Resource Type |Virtual Machines
+|Namespace |`{user_namespace}`
+|Target VM |`{user}-testvm` (the VM from Module 2)
+|===
+
+. Set the backup target:
++
+[cols="1,2"]
+|===
+|Destination Type |Object Storage
+|Storage Target |Local Multicloud Object Gateway (MCG)
+|===
+
+. For schedule, select *Manual / On-Demand* (we will trigger it manually)
+. Review and *Create* the policy
+
+== Step 3: Trigger an On-Demand Backup
+
+. In the policy list, find `{user}-vm-backup-policy`
+. Click *Run Now* (or *Backup Now*)
+. The backup job begins
+
+== Step 4: Monitor Backup Progress
+
+Watch the backup status in the Fusion UI. The job progresses through:
+
+. *Initializing* -- preparing the backup job, taking a Ceph snapshot
+. *Transferring* -- copying data to the MCG target
+. *Completed* -- backup successfully stored
+
+You can also monitor from the terminal:
+
+[source,bash,role=execute]
+----
+oc get pods -n {fusion_namespace} -l app.kubernetes.io/component=backup --watch
+----
+
+[NOTE]
+====
+For the first backup, this is a *full backup* of the entire VM disk. Subsequent backups would use CBT to transfer only changed blocks.
+
+On this lab environment, the backup should complete within a few minutes depending on the VM disk size.
+====
+
+== How CBT Works Under the Hood
+
+----
+Traditional Backup:
+  Filesystem scan → Identify changes → Read changed files → Transfer
+  Time complexity: O(total files)
+
+CBT with rbd-diff:
+  Ceph snapshot diff → Identify changed blocks → Transfer blocks
+  Time complexity: O(changed blocks)
+----
+
+The Fusion backup controller:
+
+. Takes a Ceph RBD snapshot of the VM's PVC
+. Calls `rbd diff` to compute the block-level delta against the previous snapshot
+. Streams only the changed blocks to the MCG target
+. Records the snapshot metadata for the next incremental
+
+This completely bypasses:
+
+* CSI layer overhead
+* Filesystem-level scanning
+* Application-level quiescing (for crash-consistent backups)
+
+=== Job Hooks (Advanced)
+
+For *application-consistent* backups (e.g., databases), Fusion supports *Job Hooks* -- pre/post-backup scripts that can:
+
+* Freeze the application (e.g., `FLUSH TABLES WITH READ LOCK`)
+* Trigger the snapshot
+* Thaw the application
+
+There isn't time to configure a Job Hook today, but know they exist for production database workloads.
+
+== Step 5: Verify the Backup
+
+Once the backup completes:
+
+. In the Fusion UI, navigate to *Data Protection > Backups*
+. Find the backup for `{user}-testvm`
+. Verify the status shows *Completed*
+. Note the backup size -- this is the full initial backup
+
+== References
+
+* https://www.ibm.com/docs/en/storage-fusion/{fusion_version}?topic=overview-data-protection[IBM Fusion Data Protection Overview]
+* https://www.ibm.com/docs/en/storage-fusion/{fusion_version}?topic=backup-change-block-tracking[Change Block Tracking in Fusion]
+* https://docs.ceph.com/en/latest/rbd/rbd-snapshot/#differential-backups[Ceph RBD Differential Backups (rbd diff)]
+* https://www.noobaa.io/[Multicloud Object Gateway (NooBaa)]
+
+[TIP]
+====
+*Facilitator Notes:* While the backup runs, explain the Fusion {fusion_version} native integration with the Ceph `rbd-diff` API. Explain how CBT bypasses the CSI layer and computationally expensive filesystem scanning to achieve "incremental-forever" architecture. Mention that Job Hooks exist for application-consistent database backups.
+====

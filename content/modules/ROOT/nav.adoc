@@ -1,0 +1,8 @@
+* xref:index.adoc[Welcome]
+* xref:module-00-installation.adoc[Module 0: Installation & Architecture]
+* xref:module-01-architecture.adoc[Module 1: Architecture Tour & Storage Provisioning]
+* xref:module-02-virtualization.adoc[Module 2: OpenShift Virtualization & Live Migration]
+* xref:module-03-data-protection.adoc[Module 3: Modern Data Protection]
+* xref:module-04-horizon.adoc[Module 4: The 4.20+ Horizon]
+* xref:references.adoc[References]
+* xref:conclusion.adoc[Conclusion & Wrap-up]

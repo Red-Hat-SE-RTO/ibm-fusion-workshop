@@ -1,0 +1,48 @@
+## ---------------------------------------------------------------------------
+## IBM Storage Fusion & ODF Workshop - Central Configuration
+## ---------------------------------------------------------------------------
+
+deployer:
+  domain: "apps.ocp.n7nzt.sandbox2765.opentlc.com"
+
+# Git repository containing this chart (set after pushing to GitHub)
+gitops:
+  repoUrl: "https://github.com/Red-Hat-SE-RTO/ibm-fusion-workshop.git"
+  revision: "main"
+
+# Workshop users -- add/remove entries to scale the number of lab instances
+users:
+  - user1
+  - user2
+  - user3
+  - user4
+  - user5
+
+argocd:
+  namespace: "openshift-gitops"
+
+components:
+  showroom:
+    enabled: true
+    # Official showroom-deployer Helm chart from rhpds
+    chartRepo: "https://rhpds.github.io/showroom-deployer"
+    chartVersion: "^2.0.0"
+    content:
+      repoUrl: "https://github.com/Red-Hat-SE-RTO/ibm-fusion-workshop.git"
+      repoRef: "main"
+
+  workshopInfra:
+    enabled: true
+    userNamespacePrefix: "workshop"
+
+# Cluster-specific variables passed to each user's Showroom via user_data
+workshop:
+  title: "Modern Hybrid Infrastructure: IBM Storage Fusion & OpenShift Data Foundation"
+  openshift_console_url: "https://console-openshift-console.apps.ocp.n7nzt.sandbox2765.opentlc.com"
+  fusion_ui_url: "https://ibm-spectrum-fusion-ns.apps.ocp.n7nzt.sandbox2765.opentlc.com"
+  storage_class_rbd: "ocs-storagecluster-ceph-rbd"
+  storage_class_rbd_virt: "ocs-storagecluster-ceph-rbd-virtualization"
+  storage_class_cephfs: "ocs-storagecluster-cephfs"
+  storage_class_noobaa: "openshift-storage.noobaa.io"
+  fusion_namespace: "ibm-spectrum-fusion-ns"
+  odf_namespace: "openshift-storage"
