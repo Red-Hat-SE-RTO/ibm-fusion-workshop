@@ -59,7 +59,7 @@ metadata:
   labels:
     app: {user}-testvm
 spec:
-  running: true
+  runStrategy: Always
   template:
     metadata:
       labels:
