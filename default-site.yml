@@ -1,7 +1,7 @@
 ---
 site:
   title: "Modern Hybrid Infrastructure: IBM Storage Fusion & OpenShift Data Foundation"
-  url: https://github.com/Red-Hat-SE-RTO/ibm-fusion-workshop
+  url: https://red-hat-se-rto.github.io/ibm-fusion-workshop
   start_page: modules::index.adoc
 
 content:
