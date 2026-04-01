@@ -1,7 +1,24 @@
 ---
-type: showroom
-default_width: 30
-persist_url_state: true
+antora:
+  name: modules
+  dir: www
+  modules:
+    - name: index
+      label: "Welcome & Environment Access"
+    - name: module-00-installation
+      label: "Module 0: Installation & Architecture"
+    - name: module-01-architecture
+      label: "Module 1: Architecture Tour & Storage"
+    - name: module-02-virtualization
+      label: "Module 2: Virtualization & Live Migration"
+    - name: module-03-data-protection
+      label: "Module 3: Data Protection (CBT & Backups)"
+    - name: module-04-horizon
+      label: "Module 4: The 4.20+ Horizon"
+    - name: references
+      label: "References"
+    - name: conclusion
+      label: "Conclusion & Wrap-up"
 
 tabs:
   - name: Terminal
