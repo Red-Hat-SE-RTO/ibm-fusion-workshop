@@ -11,9 +11,10 @@
 
 By the end of this module, you will:
 
-* Configure an intelligent backup policy targeting Object Storage
 * Understand how Change Block Tracking (CBT) drastically reduces backup windows
-* Execute an on-demand backup and monitor its completion
+* Create a Ceph RBD VolumeSnapshot of a running VM's disk -- the same mechanism Fusion CBT uses
+* Explore the Fusion Data Protection architecture and backup CRD workflow
+* Verify snapshot readiness and understand incremental-forever backup strategy
 
 == Conceptual Background
 
@@ -32,68 +33,148 @@ This means:
 * *First backup:* Full copy of all blocks
 * *Subsequent backups:* Only blocks that changed since the last backup -- determined in milliseconds by the Ceph `rbd-diff` API
 
-=== Backup Target: Multicloud Object Gateway (MCG)
+=== Backup Architecture
 
-The backup data is stored in S3-compatible object storage provided by the Multicloud Object Gateway (NooBaa). In this lab, the MCG is running locally in the `{odf_namespace}` namespace.
+Fusion Data Protection is built on a layered architecture:
 
-== Step 1: Access the IBM Fusion Data Protection UI
+----
+┌─────────────────────────────────────┐
+│     Fusion Data Protection UI       │
+├─────────────────────────────────────┤
+│  BackupPolicy → PolicyAssignment    │  Fusion CRDs
+│  BackupStorageLocation → Backup     │  (ibm-spectrum-fusion-ns)
+├─────────────────────────────────────┤
+│  Guardian Backup-Restore Service    │  Orchestration
+│  (Velero + OADP + Kafka + MinIO)    │  (ibm-backup-restore)
+├─────────────────────────────────────┤
+│  Ceph RBD VolumeSnapshot            │  Storage Layer
+│  rbd-diff (CBT)                     │  (openshift-storage)
+└─────────────────────────────────────┘
+----
 
-. Open the IBM Fusion UI: {fusion_ui_url}
-. Navigate to *Data Protection > Policies* (or equivalent menu item)
+At the bottom of this stack is the *VolumeSnapshot* -- a Ceph RBD snapshot that captures the state of a block device in milliseconds. In this module, you will create a VolumeSnapshot directly to see this mechanism in action.
 
-Alternatively, you can access it from the OpenShift Console via the Application Picker.
+== Step 1: Verify the VM from Module 2
 
-== Step 2: Create a Backup Policy
-
-. Click *Create Policy* (or *Add Policy*)
-. Configure the policy:
-+
-[cols="1,2"]
-|===
-|Policy Name |`{user}-vm-backup-policy`
-|Resource Type |Virtual Machines
-|Namespace |`{user_namespace}`
-|Target VM |`{user}-testvm` (the VM from Module 2)
-|===
-
-. Set the backup target:
-+
-[cols="1,2"]
-|===
-|Destination Type |Object Storage
-|Storage Target |Local Multicloud Object Gateway (MCG)
-|===
-
-. For schedule, select *Manual / On-Demand* (we will trigger it manually)
-. Review and *Create* the policy
-
-== Step 3: Trigger an On-Demand Backup
-
-. In the policy list, find `{user}-vm-backup-policy`
-. Click *Run Now* (or *Backup Now*)
-. The backup job begins
-
-== Step 4: Monitor Backup Progress
-
-Watch the backup status in the Fusion UI. The job progresses through:
-
-. *Initializing* -- preparing the backup job, taking a Ceph snapshot
-. *Transferring* -- copying data to the MCG target
-. *Completed* -- backup successfully stored
-
-You can also monitor from the terminal:
+Confirm your VM from Module 2 is still running:
 
 [source,bash,role=execute,subs="attributes+"]
 ----
-oc get pods -n {fusion_namespace} -l app.kubernetes.io/component=backup --watch
+oc get vm {user}-testvm -n {user_namespace}
+----
+
+Expected output:
+
+----
+NAME            AGE   STATUS    READY
+user1-testvm    ...   Running   True
+----
+
+Also verify the VM's PVC (the disk we will snapshot):
+
+[source,bash,role=execute,subs="attributes+"]
+----
+oc get pvc -n {user_namespace}
+----
+
+You should see `{user}-testvm-rootdisk` with access mode *RWX* and storage class `{storage_class_rbd_virt}`.
+
+[WARNING]
+====
+If the VM is not running, go back to Module 2 and create it before continuing.
+====
+
+== Step 2: Examine Available Snapshot Classes
+
+Before creating a snapshot, check which VolumeSnapshotClasses are available:
+
+[source,bash,role=execute,subs="attributes+"]
+----
+oc get volumesnapshotclass
+----
+
+You should see `ocs-storagecluster-rbdplugin-snapclass` -- this is the Ceph RBD snapshot class that enables CBT.
+
+== Step 3: Create a VolumeSnapshot (First Backup)
+
+Create a point-in-time snapshot of the VM's root disk. This is the *exact same Ceph RBD snapshot mechanism* that Fusion's CBT uses under the hood:
+
+[source,bash,role=execute,subs="attributes+"]
+----
+cat <<EOF | oc apply -f -
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: {user}-testvm-snapshot-001
+  namespace: {user_namespace}
+spec:
+  volumeSnapshotClassName: ocs-storagecluster-rbdplugin-snapclass
+  source:
+    persistentVolumeClaimName: {user}-testvm-rootdisk
+EOF
+----
+
+== Step 4: Verify the Snapshot
+
+Check the snapshot status:
+
+[source,bash,role=execute,subs="attributes+"]
+----
+oc get volumesnapshot {user}-testvm-snapshot-001 -n {user_namespace}
+----
+
+Expected output:
+
+----
+NAME                        READYTOUSE   SOURCEPVC              RESTORESIZE   SNAPSHOTCLASS                            CREATIONTIME   AGE
+user1-testvm-snapshot-001   true         user1-testvm-rootdisk  10Gi          ocs-storagecluster-rbdplugin-snapclass   <timestamp>    <age>
 ----
 
 [NOTE]
 ====
-For the first backup, this is a *full backup* of the entire VM disk. Subsequent backups would use CBT to transfer only changed blocks.
-
-On this lab environment, the backup should complete within a few minutes depending on the VM disk size.
+Notice how fast the snapshot was created -- typically *under 1 second*. This is because Ceph RBD snapshots are *copy-on-write*: the snapshot only records which blocks exist at that moment. No data is physically copied. This is the foundation of CBT's speed.
 ====
+
+For more detail, inspect the snapshot content:
+
+[source,bash,role=execute,subs="attributes+"]
+----
+oc get volumesnapshot {user}-testvm-snapshot-001 -n {user_namespace} -o jsonpath='{.status}' | python3 -m json.tool
+----
+
+Key fields to note:
+
+* `readyToUse: true` -- the snapshot is immediately available
+* `restoreSize: 10Gi` -- the logical size of the snapshotted volume
+* `creationTime` -- the exact point-in-time when the snapshot was taken
+
+== Step 5: Create a Second Snapshot (Incremental)
+
+Create a second snapshot to simulate an incremental backup point:
+
+[source,bash,role=execute,subs="attributes+"]
+----
+cat <<EOF | oc apply -f -
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: {user}-testvm-snapshot-002
+  namespace: {user_namespace}
+spec:
+  volumeSnapshotClassName: ocs-storagecluster-rbdplugin-snapclass
+  source:
+    persistentVolumeClaimName: {user}-testvm-rootdisk
+EOF
+----
+
+Compare both snapshots:
+
+[source,bash,role=execute,subs="attributes+"]
+----
+oc get volumesnapshot -n {user_namespace}
+----
+
+Both snapshots complete in under a second. In a full Fusion backup, the system would now use `rbd diff` between these two snapshots to determine which blocks changed -- and only transfer those blocks to the backup target.
 
 == How CBT Works Under the Hood
 
@@ -109,9 +190,9 @@ CBT with rbd-diff:
 
 The Fusion backup controller:
 
-. Takes a Ceph RBD snapshot of the VM's PVC
+. Takes a Ceph RBD snapshot of the VM's PVC (what you just did manually)
 . Calls `rbd diff` to compute the block-level delta against the previous snapshot
-. Streams only the changed blocks to the MCG target
+. Streams only the changed blocks to the backup target (MinIO / MCG / S3)
 . Records the snapshot metadata for the next incremental
 
 This completely bypasses:
@@ -119,6 +200,44 @@ This completely bypasses:
 * CSI layer overhead
 * Filesystem-level scanning
 * Application-level quiescing (for crash-consistent backups)
+
+=== Fusion Data Protection CRDs
+
+In a production environment, Fusion automates this through a set of Custom Resources:
+
+[cols="1,2"]
+|===
+|CRD |Purpose
+
+|`BackupStorageLocation`
+|Defines where backup data is stored (local snapshots, S3, MCG, Azure)
+
+|`BackupPolicy`
+|Defines schedule, retention, and which BSL to use
+
+|`PolicyAssignment`
+|Links a BackupPolicy to an Application (namespace) with a `runNow` trigger
+
+|`Backup`
+|Represents a single backup job and its status
+
+|`Application`
+|Registers a namespace and its PVCs for data protection
+|===
+
+Your namespace is already registered as a Fusion Application:
+
+[source,bash,role=execute,subs="attributes+"]
+----
+oc get applications.application.isf.ibm.com -n {fusion_namespace} | grep {user_namespace}
+----
+
+And the default local snapshot BSL is pre-configured:
+
+[source,bash,role=execute,subs="attributes+"]
+----
+oc get backupstoragelocations -n {fusion_namespace}
+----
 
 === Job Hooks (Advanced)
 
@@ -130,23 +249,28 @@ For *application-consistent* backups (e.g., databases), Fusion supports *Job Hoo
 
 There isn't time to configure a Job Hook today, but know they exist for production database workloads.
 
-== Step 5: Verify the Backup
+== Step 6: Clean Up Snapshots
 
-Once the backup completes:
+Remove the snapshots before moving on:
 
-. In the Fusion UI, navigate to *Data Protection > Backups*
-. Find the backup for `{user}-testvm`
-. Verify the status shows *Completed*
-. Note the backup size -- this is the full initial backup
+[source,bash,role=execute,subs="attributes+"]
+----
+oc delete volumesnapshot {user}-testvm-snapshot-001 {user}-testvm-snapshot-002 -n {user_namespace}
+----
+
+[WARNING]
+====
+Do *not* delete the VM itself -- you may use it in later modules.
+====
 
 == References
 
 * https://www.ibm.com/docs/en/storage-fusion/{fusion_version}?topic=overview-data-protection[IBM Fusion Data Protection Overview]
 * https://www.ibm.com/docs/en/storage-fusion/{fusion_version}?topic=backup-change-block-tracking[Change Block Tracking in Fusion]
 * https://docs.ceph.com/en/latest/rbd/rbd-snapshot/#differential-backups[Ceph RBD Differential Backups (rbd diff)]
-* https://www.noobaa.io/[Multicloud Object Gateway (NooBaa)]
+* https://kubernetes.io/docs/concepts/storage/volume-snapshots/[Kubernetes VolumeSnapshot Documentation]
 
 [TIP]
 ====
-*Facilitator Notes:* While the backup runs, explain the Fusion {fusion_version} native integration with the Ceph `rbd-diff` API. Explain how CBT bypasses the CSI layer and computationally expensive filesystem scanning to achieve "incremental-forever" architecture. Mention that Job Hooks exist for application-consistent database backups.
+*Facilitator Notes:* While the snapshots create, explain the Fusion {fusion_version} native integration with the Ceph `rbd-diff` API. Walk through the architecture diagram and CRD table. Emphasize that the VolumeSnapshot students just created is the *exact same primitive* that Fusion's CBT uses internally -- the Fusion layer adds scheduling, retention policies, remote targets, and application-consistent hooks on top.
 ====
