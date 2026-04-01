@@ -1,7 +1,13 @@
-links:
-  - title: OpenShift Console
-    url: "%openshift_console_url%"
-    icon: dashboard
-  - title: IBM Fusion UI
-    url: "%fusion_ui_url%"
-    icon: storage
+---
+type: showroom
+default_width: 30
+persist_url_state: true
+
+tabs:
+  - name: Terminal
+    path: /terminal/
+    port: 443
+  - name: OpenShift Console
+    url: 'https://console-openshift-console.%cluster_domain%'
+  - name: IBM Fusion UI
+    url: 'https://ibm-spectrum-fusion-ns.%cluster_domain%'
