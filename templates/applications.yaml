@@ -53,7 +53,7 @@ spec:
   project: default
   source:
     repoURL: {{ $.Values.components.showroom.chartRepo }}
-    chart: showroom
+    chart: showroom-single-pod
     targetRevision: {{ $.Values.components.showroom.chartVersion }}
     helm:
       valuesObject:

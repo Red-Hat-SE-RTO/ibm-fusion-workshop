@@ -26,7 +26,7 @@ components:
     enabled: true
     # Official showroom-deployer Helm chart from rhpds
     chartRepo: "https://rhpds.github.io/showroom-deployer"
-    chartVersion: "^2.0.0"
+    chartVersion: "2.1.2"
     content:
       repoUrl: "https://github.com/Red-Hat-SE-RTO/ibm-fusion-workshop.git"
       repoRef: "main"
