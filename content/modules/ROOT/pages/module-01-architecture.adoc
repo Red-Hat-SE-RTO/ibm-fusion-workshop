@@ -39,19 +39,24 @@ From the OpenShift Console, navigate to *Storage > StorageClasses*. You will see
 oc get sc {storage_class_rbd_virt} -o yaml
 ----
 
-Key properties of `{storage_class_rbd_virt}`:
+Look for these fields in the YAML output:
 
 [cols="1,2"]
 |===
 |Provisioner |`openshift-storage.rbd.csi.ceph.com`
-|Volume Mode |Block
-|Access Modes |*ReadWriteMany (RWX)*
-|Reclaim Policy |Delete
+|Reclaim Policy |`Delete`
+|`description` annotation |"Provides RWO and RWX Block volumes suitable for Virtual Machine disks"
+|`mapOptions` |`krbd:rxbounce` -- enables multi-node block access for live migration
+|`storageclass.kubevirt.io/is-default-virt-class` |`"true"` -- OpenShift Virtualization selects this class by default
 |===
+
+NOTE: Volume Mode and Access Modes are not fields on the StorageClass itself -- they are set when creating a PVC. The `description` annotation tells you which modes this class supports.
 
 [IMPORTANT]
 ====
-*RWX is the critical enabler for live migration.* When a PVC has RWX access mode with Block volume mode, the disk can be mounted simultaneously on multiple nodes. This allows a VM to migrate from one node to another without detaching and reattaching its storage.
+*RWX is the critical enabler for live migration.* When a PVC is created with RWX access mode and Block volume mode, the disk can be mounted simultaneously on multiple nodes. This allows a VM to migrate from one node to another without detaching and reattaching its storage.
+
+The `mapOptions: krbd:rxbounce` parameter is what makes this class different from the standard RBD class -- it enables the kernel RBD client to handle concurrent multi-node access safely.
 
 With a standard RWO volume, the VM would be *permanently locked to a single node*.
 ====
@@ -63,7 +68,7 @@ With a standard RWO volume, the VM would be *permanently locked to a single node
 oc get sc {storage_class_rbd} -o yaml
 ----
 
-`{storage_class_rbd}` provides standard block storage with *ReadWriteOnce* access. Suitable for databases and stateful applications that don't need multi-node access.
+Compare the output to the virtualization class above. Notice that `{storage_class_rbd}` is *missing* `mapOptions` and the `kubevirt.io` annotation. Its `description` annotation reads "Provides RWO Filesystem volumes, and RWO and RWX Block volumes" -- it technically supports the same access modes, but without `krbd:rxbounce` it is not safe for VM live migration. Use this class for databases and stateful applications that don't need multi-node access.
 
 === Object Storage (MCG)
 
@@ -91,13 +96,13 @@ oc get sc {storage_class_cephfs} -o yaml
 
 |`{storage_class_rbd_virt}`
 |Block
-|RWX
-|Virtual Machines (live migration)
+|RWO / RWX
+|Virtual Machines (live migration enabled via `krbd:rxbounce`)
 
 |`{storage_class_rbd}`
 |Block
-|RWO
-|Databases, stateful apps
+|RWO / RWX
+|Databases, stateful apps (no VM live migration support)
 
 |`{storage_class_cephfs}`
 |Filesystem
