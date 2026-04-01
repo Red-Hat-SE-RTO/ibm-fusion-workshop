@@ -77,6 +77,9 @@ Fusion handles the entire ODF installation -- the administrator does not need to
 . OLM resolves the subscriptions and installs the full set of ODF operators: `odf-operator`, `ocs-operator`, `rook-ceph-operator`, `mcg-operator`, `cephcsi-operator`, and supporting components
 . Each Fusion-created subscription carries the label `cns.isf.ibm.com/creator-fusion`, identifying Fusion as the orchestrator
 
+.Installed Operators in the `openshift-storage` namespace -- note the *IBM Storage Fusion Data Foundation* branding
+image::odf-installed-operators.png[Installed Operators in openshift-storage]
+
 === Step 3: Storage Cluster Instantiation
 
 Once the ODF operators are running, a `StorageSystem` custom resource is created, which in turn owns the `StorageCluster`:
@@ -105,6 +108,9 @@ spec:
 ----
 
 The `replica: 3` field means Ceph deploys three OSD daemons across different failure domains (racks) for resiliency. Rook then brings up the full Ceph cluster: MON daemons for consensus, OSD daemons for data storage, and MDS daemons for CephFS. Ceph container images are pulled from IBM's registry (`cp.icr.io/cp/df/ceph`).
+
+.The StorageSystem view in the IBM Storage Fusion Data Foundation operator showing `ocs-storagecluster-storagesystem` in a healthy state
+image::odf-storage-system.png[StorageSystem in IBM Storage Fusion Data Foundation]
 
 == Key Concepts
 
