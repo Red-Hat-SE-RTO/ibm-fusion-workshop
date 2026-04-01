@@ -90,7 +90,7 @@ Before proceeding with the hands-on exercises, verify the following prerequisite
 
 === Check 1: Fusion Version
 
-[source,bash,role=execute]
+[source,bash,role=execute,subs="attributes+"]
 ----
 oc get csv -n {fusion_namespace} -o custom-columns='NAME:.metadata.name,VERSION:.spec.version' | grep -i fusion
 ----
@@ -99,12 +99,12 @@ The output should show version *2.12* or higher. If your cluster runs an earlier
 
 === Check 2: Data Cataloging Service
 
-[source,bash,role=execute]
+[source,bash,role=execute,subs="attributes+"]
 ----
 oc get namespace {dcs_namespace} 2>/dev/null && echo "DCS namespace exists" || echo "DCS namespace NOT found"
 ----
 
-[source,bash,role=execute]
+[source,bash,role=execute,subs="attributes+"]
 ----
 oc get pods -n {dcs_namespace} --no-headers 2>/dev/null | head -10
 ----
@@ -113,7 +113,7 @@ You should see pods running in the `{dcs_namespace}` namespace. If the namespace
 
 === Check 3: OpenShift Lightspeed
 
-[source,bash,role=execute]
+[source,bash,role=execute,subs="attributes+"]
 ----
 oc get csv -A | grep -i lightspeed
 ----
@@ -131,7 +131,7 @@ If any of these prerequisites are not met, proceed directly to the <<Conceptual 
 
 The DCS MCP Server must be explicitly enabled. Patch the `SpectrumDiscover` custom resource:
 
-[source,bash,role=execute]
+[source,bash,role=execute,subs="attributes+"]
 ----
 DCS_NS={dcs_namespace}
 
@@ -152,7 +152,7 @@ oc -n ${DCS_NS} patch SpectrumDiscover \
 
 Wait for the MCP server pods to start:
 
-[source,bash,role=execute]
+[source,bash,role=execute,subs="attributes+"]
 ----
 oc -n {dcs_namespace} get pod -l 'app=isd,role=dcs-ai-mcp-server' --watch
 ----
@@ -163,7 +163,7 @@ Press `Ctrl+C` once the pods show `Running` status.
 
 Get the route for the MCP HTTP endpoint:
 
-[source,bash,role=execute]
+[source,bash,role=execute,subs="attributes+"]
 ----
 oc -n {dcs_namespace} get route -l role=dcs-ai-mcp-server -o jsonpath='{.items[0].spec.host}'
 ----

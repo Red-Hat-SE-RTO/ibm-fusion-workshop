@@ -48,7 +48,7 @@ The storage class `{storage_class_rbd_virt}` provides RWX Block volumes backed b
 
 Alternatively, create the VM from the terminal:
 
-[source,bash,role=execute]
+[source,bash,role=execute,subs="attributes+"]
 ----
 cat <<EOF | oc apply -f -
 apiVersion: kubevirt.io/v1
@@ -106,7 +106,7 @@ EOF
 
 Monitor the VM status:
 
-[source,bash,role=execute]
+[source,bash,role=execute,subs="attributes+"]
 ----
 oc get vm {user}-testvm -n {user_namespace} -w
 ----
@@ -115,7 +115,7 @@ Wait until `READY` shows `True` and `STATUS` shows `Running`. This may take 2-3 
 
 Check which node the VM is running on:
 
-[source,bash,role=execute]
+[source,bash,role=execute,subs="attributes+"]
 ----
 oc get vmi {user}-testvm -n {user_namespace} -o jsonpath='{.status.nodeName}' ; echo
 ----
@@ -132,7 +132,7 @@ Record this node name -- you'll verify the VM moves to a different node after mi
 
 === Via the Terminal
 
-[source,bash,role=execute]
+[source,bash,role=execute,subs="attributes+"]
 ----
 cat <<EOF | oc apply -f -
 apiVersion: kubevirt.io/v1
@@ -149,7 +149,7 @@ EOF
 
 Watch the migration progress:
 
-[source,bash,role=execute]
+[source,bash,role=execute,subs="attributes+"]
 ----
 oc get vmim -n {user_namespace} -w
 ----
@@ -158,7 +158,7 @@ The migration goes through these phases: `Scheduling` -> `TargetReady` -> `Runni
 
 Once complete, verify the VM moved to a different node:
 
-[source,bash,role=execute]
+[source,bash,role=execute,subs="attributes+"]
 ----
 oc get vmi {user}-testvm -n {user_namespace} -o jsonpath='{.status.nodeName}' ; echo
 ----
@@ -178,7 +178,7 @@ Attempting this with a standard *RWO* volume would *fail* -- the VM would be per
 
 If you want to clean up before Module 3:
 
-[source,bash,role=execute]
+[source,bash,role=execute,subs="attributes+"]
 ----
 oc delete vmim {user}-testvm-migration -n {user_namespace} --ignore-not-found
 ----
