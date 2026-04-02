@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dcs-setup-script
+  namespace: {{ .Values.dcsSetup.namespace }}
+  labels:
+    app.kubernetes.io/name: dcs-setup
+data:
+  dcs-setup.py: |
+{{ .Files.Get "scripts/dcs-setup.py" | indent 4 }}

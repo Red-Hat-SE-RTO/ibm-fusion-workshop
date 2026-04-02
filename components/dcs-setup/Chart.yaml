@@ -1,0 +1,8 @@
+apiVersion: v2
+name: dcs-setup
+description: >-
+  Automated DCS data ingestion -- creates an S3 bucket, uploads sample data,
+  registers the connection in DCS, triggers a scan, and verifies catalog population.
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

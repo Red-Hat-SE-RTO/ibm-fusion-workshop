@@ -70,6 +70,20 @@ components:
     llmModel: "gpt-4o"
     apiKeySecretName: "openai-api-key"
 
+  dcsSetup:
+    enabled: true
+    namespace: "ibm-data-cataloging"
+    userNamespace: "workshop-user1"
+    clusterName: "ocp-workshop"
+    connectionName: "workshop-sample-data"
+    bucketPrefix: "dcs-sample-data"
+    storageClassNoobaa: "openshift-storage.noobaa.io"
+    s3Host: "s3-openshift-storage.apps.ocp.n7nzt.sandbox2765.opentlc.com"
+    dcsAdminUser: "sdadmin"
+    dcsAdminPasswordSecret: "keystone"
+    dcsAdminPasswordKey: "password"
+    image: "registry.access.redhat.com/ubi9/python-311:latest"
+
 # Cluster-specific variables passed to each user's Showroom via user_data
 workshop:
   title: "Modern Hybrid Infrastructure: IBM Storage Fusion & OpenShift Data Foundation"
@@ -82,3 +96,5 @@ workshop:
   fusion_namespace: "ibm-spectrum-fusion-ns"
   odf_namespace: "openshift-storage"
   dcs_namespace: "ibm-data-cataloging"
+  s3_endpoint: "https://s3-openshift-storage.apps.ocp.n7nzt.sandbox2765.opentlc.com"
+  dcs_console_url: "https://console-ibm-data-cataloging.apps.ocp.n7nzt.sandbox2765.opentlc.com"

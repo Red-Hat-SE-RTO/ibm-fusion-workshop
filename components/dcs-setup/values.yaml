@@ -1,0 +1,12 @@
+dcsSetup:
+  namespace: ibm-data-cataloging
+  userNamespace: workshop-user1
+  clusterName: ocp-workshop
+  connectionName: workshop-sample-data
+  bucketPrefix: dcs-sample-data
+  storageClassNoobaa: openshift-storage.noobaa.io
+  s3Host: s3-openshift-storage.apps.ocp.example.com
+  dcsAdminUser: sdadmin
+  dcsAdminPasswordSecret: keystone
+  dcsAdminPasswordKey: password
+  image: registry.access.redhat.com/ubi9/python-311:latest

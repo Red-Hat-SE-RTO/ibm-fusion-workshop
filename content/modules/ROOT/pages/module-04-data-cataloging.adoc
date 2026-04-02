@@ -3,7 +3,7 @@
 
 [sidebar]
 ****
-*Duration:* 20 minutes (hands-on) / 10 minutes (conceptual only) +
+*Duration:* 30 minutes (hands-on) / 10 minutes (conceptual only) +
 *Type:* Hands-on Lab or Presentation +
 *Prerequisites:* IBM Storage Fusion 2.12+, OpenShift Lightspeed
 ****
@@ -15,7 +15,7 @@ By the end of this module, you will:
 * Understand what IBM Fusion Data Cataloging Service (DCS) provides for unstructured data governance
 * Explain the Model Context Protocol (MCP) and how it enables AI agents to interact with enterprise data catalogs
 * Understand how Red Hat OpenShift Lightspeed integrates with the DCS MCP Server for on-cluster natural language catalog exploration
-* (Hands-on) Enable the DCS MCP Server and explore catalog metadata through the OpenShift console
+* (Hands-on) Load sample data into an S3 bucket, register it in DCS, enable the MCP Server, and explore catalog metadata through Lightspeed
 
 == Conceptual Background
 
@@ -125,9 +125,100 @@ Verify the Lightspeed operator is installed and the chat panel is visible in the
 If any of these prerequisites are not met, proceed directly to the <<Conceptual Walkthrough>> section for a guided overview of the DCS MCP capabilities.
 ====
 
+== Hands-on: Verify Sample Data
+
+Before enabling the MCP Server, you need data in the catalog for the AI to explore. The workshop deploys an automated *dcs-setup* Job that handles the full ingestion pipeline: creating an S3 bucket, generating sample data, registering the data source in DCS, and triggering a catalog scan. In this section you will verify that the Job completed and the catalog is populated.
+
+=== Step 1: Verify the Setup Job
+
+The `dcs-setup` Job runs automatically during workshop provisioning. Check its status:
+
+[source,bash,role=execute,subs="attributes+"]
+----
+oc get job dcs-setup -n {dcs_namespace}
+----
+
+You should see `COMPLETIONS 1/1`. If the Job is still running, wait a minute and re-check.
+
+To view the Job's full output:
+
+[source,bash,role=execute,subs="attributes+"]
+----
+oc logs job/dcs-setup -n {dcs_namespace} -c setup --tail=30
+----
+
+=== Step 2: Verify the Data Connection
+
+Confirm the S3 connection was registered and is online:
+
+[source,bash,role=execute,subs="attributes+"]
+----
+DCS_TOKEN=$(oc exec -n {dcs_namespace} deploy/isd-proxy -- \
+  curl -s "http://auth.{dcs_namespace}.svc:80/auth/v1/token" \
+    -u "sdadmin:$(oc get secret keystone -n {dcs_namespace} -o jsonpath='{.data.password}' | base64 -d)" \
+    -D /dev/stderr 2>&1 | grep -i 'x-auth-token' | awk '{print $2}' | tr -d '\r\n')
+oc exec -n {dcs_namespace} deploy/isd-proxy -- \
+  curl -s "http://connmgr.{dcs_namespace}.svc:80/connmgr/v1/connections" \
+    -H "Authorization: Bearer ${DCS_TOKEN}" \
+  | python3 -c "
+import sys,json
+conns = json.load(sys.stdin)
+for c in conns:
+    print(f\"Connection: {c['name']}  |  Platform: {c['platform']}  |  Online: {c['online']}  |  Records: {c['total_records']}\")
+"
+----
+
+You should see a connection named `workshop-sample-data` with `Online: 1` and a non-zero record count.
+
+=== Step 3: Verify the Catalog
+
+Confirm files have been cataloged:
+
+[source,bash,role=execute,subs="attributes+"]
+----
+oc exec -n {dcs_namespace} c-isd-db2u-0 -- bash -c '
+su - db2inst1 -c "db2 connect to BLUDB > /dev/null; db2 \"SELECT COUNT(*) AS TOTAL_FILES FROM BLUADMIN.METAOCEAN\""
+' 2>/dev/null | grep -E "^\s+[0-9]"
+----
+
+You should see a count of approximately 27 files (YAML manifests, CSV metrics, JSON configs, and log files).
+
+=== Step 4: Explore the Data in the DCS Console (Optional)
+
+For a visual overview of the cataloged data, open the DCS web console:
+
+. Navigate to: {dcs_console_url}
++
+[TIP]
+====
+The DCS admin username is `sdadmin`. Retrieve the password:
+
+[source,bash,role=execute,subs="attributes+"]
+----
+oc get secret keystone -n {dcs_namespace} -o jsonpath='{.data.password}' | base64 -d && echo
+----
+====
++
+. Click the hamburger menu (☰) and navigate to *Data connections* > *Connections*
+. You should see the `workshop-sample-data` connection with a green "Online" indicator
+. Click *Metadata* > *Data Catalog* to browse the indexed files, their types, and sizes
+
+[NOTE]
+====
+*Manual setup fallback:* If the `dcs-setup` Job has not run (e.g., on a manually provisioned cluster), you can trigger it:
+
+[source,bash,role=execute,subs="attributes+"]
+----
+oc delete job dcs-setup -n {dcs_namespace} --ignore-not-found
+oc apply -f https://raw.githubusercontent.com/Red-Hat-SE-RTO/ibm-fusion-workshop/main/components/dcs-setup/templates/job.yaml
+----
+
+Alternatively, refer to the setup script at `components/dcs-setup/scripts/dcs-setup.py` for the full manual procedure.
+====
+
 == Hands-on: Enable the DCS MCP Server
 
-=== Step 1: Enable Natural Language Queries
+=== Step 5: Enable Natural Language Queries
 
 The DCS MCP Server must be explicitly enabled. Patch the `SpectrumDiscover` custom resource:
 
@@ -148,7 +239,7 @@ oc -n ${DCS_NS} patch SpectrumDiscover \
   }'
 ----
 
-=== Step 2: Verify MCP Server Pods
+=== Step 6: Verify MCP Server Pods
 
 Wait for the MCP server pods to start:
 
@@ -159,7 +250,7 @@ oc -n {dcs_namespace} get pod -l 'app=isd,role=dcs-ai-mcp-server' --watch
 
 Press `Ctrl+C` once the pods show `Running` status.
 
-=== Step 3: Retrieve the MCP Endpoint
+=== Step 7: Retrieve the MCP Endpoint
 
 Get the route for the MCP HTTP endpoint:
 
@@ -168,53 +259,55 @@ Get the route for the MCP HTTP endpoint:
 oc -n {dcs_namespace} get route dcs-mcp-route -o jsonpath='{.spec.host}'
 ----
 
-Note this URL -- it is the MCP server endpoint that Lightspeed connects to for catalog operations.
+Note this URL -- it is the MCP server endpoint. The actual MCP transport path is `/mcp/http` (Streamable HTTP). Lightspeed connects to this endpoint internally -- you do not need to configure anything manually.
 
 == Hands-on: Explore the Catalog via OpenShift Lightspeed
 
-=== Step 4: Open the Lightspeed Chat Panel
+=== Step 8: Open the Lightspeed Chat Panel
 
 . Navigate to the OpenShift web console: {openshift_console_url}
 . Look for the *Lightspeed* icon in the top navigation bar (or the side panel)
 . Click to open the chat panel
 
-=== Step 5: Query the Data Catalog
+=== Step 9: Query the Data Catalog
 
-With the DCS MCP Server enabled and Lightspeed connected, try the following natural language queries in the chat panel:
+With the DCS MCP Server enabled and sample data scanned, try the following natural language queries in the Lightspeed chat panel. The AI will translate your questions into SQL queries against the METAOCEAN catalog table via MCP tool calls.
 
 *Discovery queries:*
 
-* "What data sources are registered in the catalog?"
-* "Show me all datasets that contain customer information"
-* "What tags are currently applied to the most recent ingested data?"
+* "How many files are in the data catalog?"
+* "What file types are present and how many of each?"
+* "Show me all PDF documents in the catalog"
 
 *Metadata exploration:*
 
-* "Describe the schema and metadata for the largest datasets"
-* "Which datasets have not been classified yet?"
-* "Show me data assets that were modified in the last 7 days"
+* "What are the 10 largest files by size?"
+* "Show me all files in the logs/ directory"
+* "Which files were most recently added to the catalog?"
+* "List all CSV files and their sizes"
 
-=== Step 6: AI-Driven Tagging and Classification
+=== Step 10: AI-Driven Tagging and Classification
 
-MCP enables the LLM to not just read the catalog, but also *enrich* it:
+MCP enables the LLM to not just read the catalog, but also *enrich* it. Try the following:
 
-* "Analyze the unclassified datasets and recommend appropriate tags"
-* "Apply the recommended security classification tags to datasets containing personally identifiable information"
-* "Create a summary of the security posture across all cataloged data"
+* "Recommend tags for classifying the files in the catalog based on their types and paths"
+* "Create a tag called doc_category with type VARCHAR(256)"
+* "Create an AUTOTAG policy named classify-pdfs that tags all PDF files with doc_category=reference-guide"
+* "What tags are currently registered in the system?"
 
 [IMPORTANT]
 ====
 The LLM can *propose and apply* tags programmatically through MCP tool calls. This transforms catalog maintenance from a manual, transactional process into an intelligent, conversational workflow.
 ====
 
-=== Step 7: Security Risk Assessment
+=== Step 11: Security Risk Assessment
 
 This exercise mirrors the use case described in the https://community.ibm.com/community/user/blogs/paul-llamas-virgen/2026/03/06/exploring-your-fusion-data-catalog-with-nlp[IBM Community article]:
 
-. Ask Lightspeed: "Perform a security risk assessment across all cataloged data sources. Identify datasets that may contain sensitive information and recommend classification policies."
+. Ask Lightspeed: "Analyze the catalog for files that may contain sensitive information. The customer-directory.csv likely has PII. Recommend classification policies."
 . Review the LLM's analysis -- it will use MCP tools to scan metadata, identify patterns, and propose tags
 . If satisfied with the recommendations, ask: "Apply the recommended security tags"
-. Finally, ask: "Generate a security posture dashboard summary for the data catalog"
+. Ask: "Summarize the security posture of the data catalog -- how many files are classified vs. unclassified?"
 
 The result is a comprehensive, AI-generated view of your data security landscape -- produced through natural conversation rather than manual SQL queries and static reports.
 

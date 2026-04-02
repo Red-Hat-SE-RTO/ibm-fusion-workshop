@@ -19,4 +19,4 @@ asciidoc:
     dcs_namespace: "ibm-data-cataloging"
     # Dynamic attributes injected at runtime via showroom-deployer user_data:
     #   user, user_namespace, cluster_domain, openshift_console_url,
-    #   fusion_ui_url, workshop_title
+    #   fusion_ui_url, s3_endpoint, dcs_console_url, workshop_title

@@ -167,6 +167,39 @@ spec:
       - CreateNamespace=true
       - ServerSideApply=true
 {{- end }}
+{{- if .Values.components.dcsSetup.enabled }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dcs-setup
+  namespace: {{ .Values.argocd.namespace }}
+  labels:
+    {{- include "workshop.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: {{ .Values.gitops.repoUrl }}
+    targetRevision: {{ .Values.gitops.revision }}
+    path: components/dcs-setup
+    helm:
+      valuesObject:
+        dcsSetup:
+          {{- toYaml .Values.components.dcsSetup | nindent 10 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.components.dcsSetup.namespace }}
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+{{- end }}
 {{- if .Values.components.showroom.enabled }}
 {{- range $user := .Values.users }}
 ---
@@ -211,6 +244,8 @@ spec:
             fusion_namespace: {{ $.Values.workshop.fusion_namespace }}
             odf_namespace: {{ $.Values.workshop.odf_namespace }}
             dcs_namespace: {{ $.Values.workshop.dcs_namespace }}
+            s3_endpoint: {{ $.Values.workshop.s3_endpoint }}
+            dcs_console_url: {{ $.Values.workshop.dcs_console_url }}
             workshop_title: {{ $.Values.workshop.title | quote }}
         terminal:
           setup: "true"
