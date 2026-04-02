@@ -36,29 +36,32 @@ In this workshop, you:
 |DCS, MCP, OpenShift Lightspeed
 
 |xref:module-05-horizon.adoc[Module 5]
-|Explored the 4.20+ roadmap
-|Descheduler PSI, GIE, CAS
+|Explored the 4.21 Horizon -- autonomic ops, AI inference, and GPU scheduling
+|Descheduler PSI, GIE, llm-d, CAS, DRA
 |===
 
 == The Core Message
 
 OpenShift Data Foundation and IBM Storage Fusion transform storage from a *passive receptacle* into an *intelligent, highly mobile data fabric* ready for both legacy VMs and modern AI.
 
-The four pillars you experienced today:
+The five pillars you experienced today:
 
-*Mobility*:: RWX Ceph storage enables VMs to move freely across nodes -- today manually, soon autonomically via the PSI-based Descheduler.
+*Mobility*:: RWX Ceph storage enables VMs to move freely across nodes -- today manually, and now autonomically via the `KubeVirtRelieveAndMigrate` descheduler profile with PSI metrics. Cross-cluster live migration (Tech Preview in 4.21) extends this across entire clusters.
 
-*Protection*:: Change Block Tracking via the Ceph rbd-diff API achieves incremental-forever backups that bypass the CSI layer entirely, reducing backup windows from hours to minutes.
+*Protection*:: Change Block Tracking via the Ceph rbd-diff API achieves incremental-forever backups that bypass the CSI layer entirely, reducing backup windows from hours to minutes. Storage-agnostic CBT is now GA in 4.21.
 
 *Cataloging*:: IBM Fusion Data Cataloging Service with MCP enables AI-driven metadata discovery, classification, and governance through natural language -- turning data catalogs from static repositories into intelligent, conversational assets.
 
-*Intelligence*:: The 4.20+ roadmap brings Content-Aware Storage for AI pipelines and Gateway API Inference Extension for GPU-efficient LLM serving.
+*Intelligence*:: Content-Aware Storage makes storage an active RAG pipeline participant. The Gateway API Inference Extension (GA since 4.20) and llm-d (CNCF Sandbox, March 2026) deliver GPU-efficient, cache-aware LLM serving.
+
+*GPU Efficiency*:: Dynamic Resource Allocation (GA in 4.21) replaces device plugins with expression-driven GPU scheduling, sharing, and topology awareness. Kueue 1.2 adds priority-based queue management for AI training jobs.
 
 == Next Steps
 
-* *Explore further:* Review the xref:references.adoc[External References] for deep-dive documentation
+* *Explore further:* Review the xref:references.adoc[External References] and the categorized links in xref:module-05-horizon.adoc[Module 5] for deep-dive documentation
 * *Try in production:* Request a longer RHDP environment to test multi-VM backup policies with scheduled CBT
-* *Plan for 4.20+:* Evaluate the Descheduler and Gateway API for your AI/ML infrastructure roadmap
+* *Plan for 4.21:* Evaluate the `KubeVirtRelieveAndMigrate` descheduler, Gateway API Inference Extension, DRA, and Content-Aware Storage for your AI/ML infrastructure roadmap
+* *Explore llm-d:* The https://llm-d.ai/[llm-d CNCF Sandbox project] from IBM Research, Red Hat, and Google Cloud is the emerging standard for Kubernetes-native LLM inference
 * *Provide feedback:* Share your workshop experience with your facilitator
 
 == Q&A
@@ -75,6 +78,6 @@ This is the open discussion period. Facilitators should be prepared to address q
 
 == Thank You
 
-Thank you for participating in the *Modern Hybrid Infrastructure* workshop. The skills you practiced today -- VM deployment, live migration, and intelligent data protection -- are directly applicable to production OpenShift environments.
+Thank you for participating in the *Modern Hybrid Infrastructure* workshop. The skills you practiced today -- VM deployment, live migration, intelligent data protection, and AI-driven data cataloging -- are directly applicable to production OpenShift 4.21 environments.
 
 Your lab environment will remain available for the duration of the RHDP reservation.
