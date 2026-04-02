@@ -335,7 +335,8 @@ Run this command to build the ready-to-paste authentication message:
 [source,bash,role=execute,subs="attributes+"]
 ----
 DCS_PW=$(oc get secret keystone -n {dcs_namespace} -o jsonpath='{.data.password}' | base64 -d)
-API_URL=$(oc whoami --show-server)
+APPS_DOMAIN="{cluster_domain}"
+API_URL="https://api.$\{APPS_DOMAIN#apps.}:6443"
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
 echo "║  Copy the message below and paste it into Lightspeed chat:  ║"
@@ -351,7 +352,7 @@ Copy the *entire* output (all four lines starting with "Use the dcs_set_credenti
 
 [WARNING]
 ====
-Do *not* reword or shorten the message. The LLM needs the exact parameter names (`cluster_url`, `username`, `password`) and values to call the tool correctly. If the tool fails with "x-auth-token not found", double-check that the `cluster_url` matches `oc whoami --show-server` exactly.
+Do *not* reword or shorten the message. The LLM needs the exact parameter names (`cluster_url`, `username`, `password`) and values to call the tool correctly. If the tool fails with "x-auth-token not found", double-check that the `cluster_url` starts with `https://api.` and uses port `6443` (not the internal `172.30.0.1` address).
 ====
 
 [NOTE]
