@@ -335,8 +335,8 @@ Run this command to build the ready-to-paste authentication message:
 [source,bash,role=execute,subs="attributes+"]
 ----
 DCS_PW=$(oc get secret keystone -n {dcs_namespace} -o jsonpath='{.data.password}' | base64 -d)
-APPS_DOMAIN="{cluster_domain}"
-API_URL="https://api.$\{APPS_DOMAIN#apps.}:6443"
+API_HOST=$(echo "{cluster_domain}" | sed 's/^apps\./api./')
+API_URL="https://$API_HOST:6443"
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
 echo "║  Copy the message below and paste it into Lightspeed chat:  ║"
