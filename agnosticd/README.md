@@ -6,20 +6,24 @@ Deploy the IBM Storage Fusion & ODF Workshop using AgnosticD v2.
 
 | Requirement | Details |
 |-------------|---------|
-| AgnosticD v2 | Cloned and set up (`agd setup`) |
-| Base cluster | OCP 4.18+ with IBM Storage Fusion 2.12+ and ODF |
-| ArgoCD | OpenShift GitOps operator installed |
+| RHDP environment | Order [OpenShift Container Platform with IBM Fusion](https://catalog.demo.redhat.com/catalog?item=babylon-catalog-prod/sandboxes-gpte.ocp4-demo-ibm-fusion.prod) from the Red Hat Demo Platform |
+| AgnosticD v2 | Cloned and set up per the [AgnosticD v2 Setup Guide](https://github.com/agnosticd/agnosticd-v2/blob/main/docs/setup.adoc) |
+| ArgoCD | OpenShift GitOps operator installed (included in the RHDP environment) |
 | OpenAI key | API key for OpenShift Lightspeed (Module 4) |
 
 ## Quick Start
 
-### 1. Copy the vars file
+### 1. Set up AgnosticD v2 (one-time)
+
+Follow the [AgnosticD v2 Setup Guide](https://github.com/agnosticd/agnosticd-v2/blob/main/docs/setup.adoc) to clone the repo and run `./bin/agd setup`.
+
+### 2. Copy the vars file
 
 ```bash
 cp agnosticd/vars/ibm-fusion-workshop.yml ~/Development/agnosticd-v2-vars/
 ```
 
-### 2. Create the OpenAI API key secret
+### 3. Create the OpenAI API key secret
 
 Before deploying (or after the `openshift-lightspeed` namespace exists):
 
@@ -30,7 +34,9 @@ oc create secret generic openai-api-key \
   --from-literal=api-key='<YOUR_OPENAI_API_KEY>'
 ```
 
-### 3. Deploy
+### 4. Deploy
+
+Replace `sandbox1234` with your RHDP sandbox account number:
 
 ```bash
 cd ~/Development/agnosticd-v2
@@ -41,16 +47,19 @@ This provisions the base OCP cluster and runs the `ocp4_workload_field_content`
 workload, which creates an ArgoCD Application pointing to this repository.
 ArgoCD then deploys all components:
 
-- RHACM (sync-wave 0)
+- Machineset, RHACM (sync-wave 0)
 - Workshop infrastructure, DCS, Lightspeed (sync-wave 1)
-- Showroom lab guides per user (sync-wave 2)
+- DCS setup, Showroom lab guides per user (sync-wave 2)
 
-### 4. Verify
+### 5. Verify
 
 ```bash
 oc get applications -n openshift-gitops
 oc get pods -n ibm-data-cataloging
 oc get csv -n openshift-lightspeed
+
+# Check showroom for user1
+oc get route -n showroom-user1
 ```
 
 ## Manual Deployment (without AgnosticD)

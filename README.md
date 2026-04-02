@@ -42,9 +42,8 @@ with per-user `user_data` attributes injected through ArgoCD.
 
 ## Prerequisites
 
-- Pre-provisioned RHDP environment: **OpenShift Container Platform with IBM Fusion** (AWS)
-- Must be provisioned **90 minutes prior** to session start
-- OpenShift GitOps (ArgoCD) operator installed on the cluster
+- **RHDP environment:** Order [OpenShift Container Platform with IBM Fusion](https://catalog.demo.redhat.com/catalog?item=babylon-catalog-prod/sandboxes-gpte.ocp4-demo-ibm-fusion.prod) from the Red Hat Demo Platform. Must be provisioned **90 minutes prior** to session start.
+- **AgnosticD v2** (Option A): Set up locally per the [AgnosticD v2 Setup Guide](https://github.com/agnosticd/agnosticd-v2/blob/main/docs/setup.adoc)
 - `oc` and `helm` CLI tools available
 - An OpenAI API key (for OpenShift Lightspeed in Module 4)
 
@@ -52,7 +51,7 @@ with per-user `user_data` attributes injected through ArgoCD.
 
 ### Option A: AgnosticD v2 (Recommended for RHDP)
 
-See [`agnosticd/README.md`](agnosticd/README.md) for the full AgnosticD deployment path. Quick summary:
+Requires a one-time [AgnosticD v2 setup](https://github.com/agnosticd/agnosticd-v2/blob/main/docs/setup.adoc). See [`agnosticd/README.md`](agnosticd/README.md) for the full deployment path. Quick summary:
 
 ```bash
 # Copy the vars file into your agnosticd-v2-vars directory
@@ -60,7 +59,7 @@ cp agnosticd/vars/ibm-fusion-workshop.yml ~/Development/agnosticd-v2-vars/
 
 # Provision (from the agnosticd-v2 directory)
 cd ~/Development/agnosticd-v2
-./bin/agd provision -g myfusion -c ibm-fusion-workshop -a <your-account>
+./bin/agd provision -g myfusion -c ibm-fusion-workshop -a <your-sandbox-account>
 ```
 
 This provisions the base OCP cluster and runs the `ocp4_workload_field_content`
