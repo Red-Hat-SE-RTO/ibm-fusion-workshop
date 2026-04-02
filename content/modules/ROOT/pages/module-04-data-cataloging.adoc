@@ -423,26 +423,42 @@ image::lightspeed-recommend-tags.png[Lightspeed recommending tags based on file 
 +
 * "Create a tag called DOC_CATEGORY with type VARCHAR(256)"
 +
-. Create an auto-tagging policy. Describe each parameter on its own line so the LLM maps them correctly -- especially `tags`, which must be passed as a JSON object, not a string:
+. Create an auto-tagging policy. Try asking Lightspeed:
 +
-----
-Call the dcs_create_policy tool with these parameters:
-  policyName = classify-pdfs
-  polFilter = filetype='pdf'
-  schedule = NOW
-  tags = map with key DOC_CATEGORY and value reference-guide
-----
+* "Create an AUTOTAG policy called classify-pdfs that filters on filetype='pdf', runs NOW, and sets DOC_CATEGORY to reference-guide"
 +
-[TIP]
+[NOTE]
 ====
-*Why so specific?* The `dcs_create_policy` tool has strict requirements:
+*If the policy creation fails* with _"'tags' parameter is required and must be a map"_ -- this is a known limitation. The `dcs_create_policy` tool requires `tags` as a JSON object, and some LLMs struggle to construct nested objects in tool calls. Use the terminal fallback below to create the policy directly via the MCP server:
 
-* `tags` must be a JSON object (map), not a string. Writing it as `tags: {"DOC_CATEGORY": "reference-guide"}` in the prompt confuses some LLMs -- they drop the parameter or pass it as a string. Phrasing it as _"map with key X and value Y"_ reliably produces the correct JSON object.
-* Tag names must be *UPPERCASE* -- `DOC_CATEGORY` works, `doc_category` fails with "Invalid tag in policy action params."
-* `polFilter` uses SQL-like syntax -- `filetype='pdf'` or `filename LIKE '%customer%'`
+[source,bash,role=execute,subs="attributes+"]
+----
+MCP_HOST=$(oc -n {dcs_namespace} get route dcs-mcp-route -o jsonpath='{.spec.host}')
+DCS_PW=$(oc get secret keystone -n {dcs_namespace} -o jsonpath='{.data.password}' | base64 -d)
+API_HOST=$(echo "{cluster_domain}" | sed 's/^apps\./api./')
+
+SID=$(curl -sk "https://$MCP_HOST/mcp/http" \
+  -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
+  -D /dev/stderr -o /dev/null \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"cli","version":"1.0"}}}' \
+  2>&1 | grep -i mcp-session-id | awk '{print $2}' | tr -d '\r\n')
+
+curl -sk "https://$MCP_HOST/mcp/http" \
+  -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
+  -H "Mcp-Session-Id: $SID" \
+  -d "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":\"dcs_set_credentials\",\"arguments\":{\"cluster_url\":\"https://$API_HOST:6443\",\"username\":\"sdadmin\",\"password\":\"$DCS_PW\"}}}" > /dev/null 2>&1
+
+echo "Creating policy classify-pdfs..."
+curl -sk "https://$MCP_HOST/mcp/http" \
+  -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
+  -H "Mcp-Session-Id: $SID" \
+  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"dcs_create_policy","arguments":{"policyName":"classify-pdfs","polFilter":"filetype='"'"'pdf'"'"'","schedule":"NOW","tags":{"DOC_CATEGORY":"reference-guide"}}}}' 2>/dev/null | grep -o '"text":"[^"]*"' | cut -d'"' -f4
+----
+
+This calls the same MCP tool (`dcs_create_policy`) with the same JSON-RPC protocol that Lightspeed uses -- the only difference is that the terminal constructs the `tags` object directly instead of relying on the LLM.
 ====
 +
-. Verify what was created:
+. Verify what was created -- ask Lightspeed (these read-only queries work reliably):
 +
 * "Show me all registered tags and their types"
 * "List all policies in the system and their execution status"
@@ -453,7 +469,7 @@ image::dcs-tag-management.png[DCS Tag Management showing created tags]
 
 [IMPORTANT]
 ====
-The LLM can *propose and apply* tags programmatically through MCP tool calls. This transforms catalog maintenance from a manual, transactional process into an intelligent, conversational workflow. Each action calls a specific MCP tool -- you can watch the tool invocations in the Lightspeed chat as they happen.
+This demonstrates a real-world pattern: LLMs excel at *reading* data through MCP tools (queries, listing tags, summarizing metadata) but can be unreliable when *writing* (creating policies with complex nested parameters). Robust implementations use MCP for discovery and conversational analysis, with programmatic fallbacks for mutations.
 ====
 
 === Step 11: Security Risk Assessment
@@ -464,14 +480,34 @@ This exercise mirrors the use case described in the https://community.ibm.com/co
 +
 * "Create a tag called SENSITIVITY with type VARCHAR(256)"
 +
-. Create a policy to tag files that may contain personal information:
+. Create a policy to tag files that may contain personal information. Try asking Lightspeed:
 +
+* "Create an AUTOTAG policy called tag-sensitive-files that filters on filename LIKE '%customer%', runs NOW, and sets SENSITIVITY to pii-likely"
++
+If the policy creation fails (same `tags` limitation as Step 10), use the terminal fallback:
++
+[source,bash,role=execute,subs="attributes+"]
 ----
-Call the dcs_create_policy tool with these parameters:
-  policyName = tag-sensitive-files
-  polFilter = filename LIKE '%customer%'
-  schedule = NOW
-  tags = map with key SENSITIVITY and value pii-likely
+MCP_HOST=$(oc -n {dcs_namespace} get route dcs-mcp-route -o jsonpath='{.spec.host}')
+DCS_PW=$(oc get secret keystone -n {dcs_namespace} -o jsonpath='{.data.password}' | base64 -d)
+API_HOST=$(echo "{cluster_domain}" | sed 's/^apps\./api./')
+
+SID=$(curl -sk "https://$MCP_HOST/mcp/http" \
+  -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
+  -D /dev/stderr -o /dev/null \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"cli","version":"1.0"}}}' \
+  2>&1 | grep -i mcp-session-id | awk '{print $2}' | tr -d '\r\n')
+
+curl -sk "https://$MCP_HOST/mcp/http" \
+  -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
+  -H "Mcp-Session-Id: $SID" \
+  -d "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":\"dcs_set_credentials\",\"arguments\":{\"cluster_url\":\"https://$API_HOST:6443\",\"username\":\"sdadmin\",\"password\":\"$DCS_PW\"}}}" > /dev/null 2>&1
+
+echo "Creating policy tag-sensitive-files..."
+curl -sk "https://$MCP_HOST/mcp/http" \
+  -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
+  -H "Mcp-Session-Id: $SID" \
+  -d "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"name\":\"dcs_create_policy\",\"arguments\":{\"policyName\":\"tag-sensitive-files\",\"polFilter\":\"filename LIKE '%customer%'\",\"schedule\":\"NOW\",\"tags\":{\"SENSITIVITY\":\"pii-likely\"}}}}" 2>/dev/null | grep -o '"text":"[^"]*"' | cut -d'"' -f4
 ----
 +
 . Check what was tagged:
