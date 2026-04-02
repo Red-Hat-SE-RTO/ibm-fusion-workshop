@@ -374,11 +374,24 @@ With authentication complete, try the following natural language queries in the 
 *How it works under the hood:* When you ask a question, GPT-4o translates it into a SQL query against the DCS `METAOCEAN` table and calls the `dcs_file_search` MCP tool to execute it. For example, asking _"What file types are in the catalog?"_ generates something like `SELECT FILETYPE, COUNT(*) AS CNT FROM METAOCEAN GROUP BY FILETYPE`. The MCP server runs the SQL and returns structured results, which Lightspeed presents as a natural language summary.
 ====
 
+[IMPORTANT]
+====
+*Metadata queries only -- not file contents.* DCS is a *metadata catalog*, not a full-text search engine. The MCP tools query the METAOCEAN table, which stores information *about* files (name, type, size, path, timestamps, owner, tags) but does *not* read or index the actual contents of those files.
+
+*You CAN ask:* "What are the largest PDF files?" "Show me files modified this week." "Which files are tagged as sensitive?"
+
+*You CANNOT ask:* "Summarize the OpenShift architecture PDF." "What IP addresses appear in the log files?" "Show me the customer names in customer-directory.csv."
+
+Think of it like a library card catalog: you can search by title, author, and subject -- but you can't read the book through the catalog.
+====
+
 *Discovery queries:*
 
 * "How many total files are in the data catalog?"
 * "What file types are present in the catalog and how many of each?"
 * "Show me all PDF documents with their filenames and sizes"
+
+image::lightspeed-file-count.png[Lightspeed showing 25 files in the catalog]
 
 *Metadata exploration:*
 
@@ -386,6 +399,8 @@ With authentication complete, try the following natural language queries in the 
 * "Show me all files under the logs/ directory path"
 * "Which files were most recently added to the catalog? Sort by insert time."
 * "List all CSV files with their filenames, sizes, and paths"
+
+image::lightspeed-largest-files.png[Lightspeed showing the 10 largest files sorted by size]
 
 *Tags and governance:*
 
@@ -400,18 +415,27 @@ MCP enables the LLM to not just read the catalog, but also *enrich* it. The avai
 +
 * "Analyze the file types and paths in the catalog and recommend meaningful tags for classifying them"
 +
+image::lightspeed-recommend-tags.png[Lightspeed recommending tags based on file types]
++
 . Then create a tag:
 +
 * "Create a tag called doc_category with type VARCHAR(256)"
 +
-. Create an auto-tagging policy:
+. Create an auto-tagging policy. Be explicit about the tags parameter format (the tool expects a map):
 +
-* "Create an AUTOTAG policy named classify-pdfs that tags all PDF files with doc_category=reference-guide"
+* "Create a policy named classify-pdfs with polFilter filetype='pdf', schedule NOW, and tags \{"doc_category": "reference-guide"}"
++
+[TIP]
+====
+If the policy creation fails with _"'tags' parameter is required and must be a map"_, rephrase with the explicit JSON format: `tags: {"doc_category": "reference-guide"}`. The `dcs_create_policy` tool expects `tags` as a key-value object, and some LLMs need the exact structure spelled out.
+====
 +
 . Verify what was created:
 +
 * "Show me all registered tags and their types"
 * "List all policies in the system"
++
+image::dcs-tag-management.png[DCS Tag Management showing created tags]
 
 [IMPORTANT]
 ====
