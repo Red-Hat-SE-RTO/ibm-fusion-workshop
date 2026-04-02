@@ -1,3 +1,47 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: workshop-csv-reader
+  labels:
+    app.kubernetes.io/part-of: ibm-fusion-workshop
+rules:
+  - apiGroups: ["operators.coreos.com"]
+    resources: ["clusterserviceversions"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: workshop-dcs-access
+  namespace: {{ $.Values.workshopInfra.dcsNamespace | default "ibm-data-cataloging" }}
+  labels:
+    app.kubernetes.io/part-of: ibm-fusion-workshop
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list"]
+  - apiGroups: ["route.openshift.io"]
+    resources: ["routes"]
+    verbs: ["get", "list"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list"]
+  - apiGroups: ["spectrum-discover.ibm.com"]
+    resources: ["spectrumdiscovers"]
+    verbs: ["get", "list", "patch"]
 {{- range $user := .Values.users }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -80,6 +124,56 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: view
+subjects:
+  - kind: ServiceAccount
+    name: showroom-{{ $user }}
+    namespace: showroom-{{ $user }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $user }}-terminal-fusion-view
+  namespace: {{ $.Values.workshopInfra.fusionNamespace | default "ibm-spectrum-fusion-ns" }}
+  labels:
+    app.kubernetes.io/part-of: ibm-fusion-workshop
+    workshop/user: "{{ $user }}"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+subjects:
+  - kind: ServiceAccount
+    name: showroom-{{ $user }}
+    namespace: showroom-{{ $user }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $user }}-terminal-dcs-access
+  namespace: {{ $.Values.workshopInfra.dcsNamespace | default "ibm-data-cataloging" }}
+  labels:
+    app.kubernetes.io/part-of: ibm-fusion-workshop
+    workshop/user: "{{ $user }}"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: workshop-dcs-access
+subjects:
+  - kind: ServiceAccount
+    name: showroom-{{ $user }}
+    namespace: showroom-{{ $user }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $user }}-terminal-csv-reader
+  labels:
+    app.kubernetes.io/part-of: ibm-fusion-workshop
+    workshop/user: "{{ $user }}"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: workshop-csv-reader
 subjects:
   - kind: ServiceAccount
     name: showroom-{{ $user }}

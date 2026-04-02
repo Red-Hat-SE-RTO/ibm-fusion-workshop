@@ -41,6 +41,8 @@ components:
   workshopInfra:
     enabled: true
     userNamespacePrefix: "workshop"
+    fusionNamespace: "ibm-spectrum-fusion-ns"
+    dcsNamespace: "ibm-data-cataloging"
 
   machineset:
     enabled: true
@@ -69,6 +71,7 @@ components:
     llmProvider: "openai"
     llmModel: "gpt-4o"
     apiKeySecretName: "openai-api-key"
+    mcpServerUrl: "https://dcs-mcp-route-ibm-data-cataloging.apps.ocp.n7nzt.sandbox2765.opentlc.com/mcp/http"
 
   dcsSetup:
     enabled: true

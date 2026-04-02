@@ -172,16 +172,16 @@ You should see a connection named `workshop-sample-data` with `Online: 1` and a 
 
 === Step 3: Verify the Catalog
 
-Confirm files have been cataloged:
+Confirm files have been cataloged by querying the DB2 catalog database:
 
 [source,bash,role=execute,subs="attributes+"]
 ----
-oc exec -n {dcs_namespace} c-isd-db2u-0 -- bash -c '
-su - db2inst1 -c "db2 connect to BLUDB > /dev/null; db2 \"SELECT COUNT(*) AS TOTAL_FILES FROM BLUADMIN.METAOCEAN\""
-' 2>/dev/null | grep -E "^\s+[0-9]"
+oc exec -n {dcs_namespace} c-isd-db2u-0 -c db2u -- su - db2inst1 -c \
+  'printf "connect to BLUDB;\nSELECT FILETYPE, COUNT(*) AS CNT FROM BLUADMIN.METAOCEAN GROUP BY FILETYPE;\n" | db2 -t' \
+  2>/dev/null | grep -E "^\w"
 ----
 
-You should see a count of approximately 27 files (YAML manifests, CSV metrics, JSON configs, and log files).
+You should see a breakdown by file type (csv, json, log, pdf, yaml) totaling approximately 25 files.
 
 === Step 4: Explore the Data in the DCS Console (Optional)
 
@@ -200,8 +200,64 @@ oc get secret keystone -n {dcs_namespace} -o jsonpath='{.data.password}' | base6
 ====
 +
 . Click the hamburger menu (☰) and navigate to *Data connections* > *Connections*
-. You should see the `workshop-sample-data` connection with a green "Online" indicator
+. You should see the `workshop-sample-data` connection with a green "Online" indicator:
++
+image::dcs-connections.png[DCS Connections showing workshop-sample-data online]
++
 . Click *Metadata* > *Data Catalog* to browse the indexed files, their types, and sizes
+
+[NOTE]
+====
+The DCS Dashboard may show *"Records indexed: 0"* even though the data IS in the catalog:
+
+image::dcs-dashboard.png[DCS Dashboard showing zero records indexed]
+
+This is a cosmetic discrepancy -- the dashboard counter tracks a separate indexing pipeline stage. The catalog records in the METAOCEAN table are fully populated and queryable via MCP, as you confirmed in Step 3.
+====
+
+=== Step 4b: Add Your Own Data (Optional)
+
+Want to catalog your own files? You can upload additional data to the S3 bucket that the workshop created.
+
+. Extract the S3 credentials:
++
+[source,bash,role=execute,subs="attributes+"]
+----
+export AWS_ACCESS_KEY_ID=$(oc get secret dcs-sample-data -n {user_namespace} -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 -d)
+export AWS_SECRET_ACCESS_KEY=$(oc get secret dcs-sample-data -n {user_namespace} -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 -d)
+export BUCKET_NAME=$(oc get obc dcs-sample-data -n {user_namespace} -o jsonpath='{.spec.bucketName}')
+export S3_ENDPOINT={s3_endpoint}
+----
++
+. Install the AWS CLI (if not already available):
++
+[source,bash,role=execute,subs="attributes+"]
+----
+pip install --user awscli 2>/dev/null && export PATH=$HOME/.local/bin:$PATH
+----
++
+. Upload your files:
++
+[source,bash,role=execute,subs="attributes+"]
+----
+aws --endpoint-url ${S3_ENDPOINT} --no-verify-ssl \
+  s3 cp /path/to/your/file.csv s3://${BUCKET_NAME}/custom/file.csv
+----
++
+. Trigger a rescan from the DCS console: navigate to *Data connections* > *Connections*, click the three-dot menu (⋮) next to `workshop-sample-data`, and select *Scan*. Alternatively, trigger via the API:
++
+[source,bash,role=execute,subs="attributes+"]
+----
+DCS_TOKEN=$(oc exec -n {dcs_namespace} deploy/isd-proxy -- \
+  curl -s "http://auth.{dcs_namespace}.svc:80/auth/v1/token" \
+    -u "sdadmin:$(oc get secret keystone -n {dcs_namespace} -o jsonpath='{.data.password}' | base64 -d)" \
+    -D /dev/stderr 2>&1 | grep -i 'x-auth-token' | awk '{print $2}' | tr -d '\r\n')
+oc exec -n {dcs_namespace} deploy/isd-proxy -- \
+  curl -s -X POST "http://connmgr.{dcs_namespace}.svc:80/connmgr/v1/scan/workshop-sample-data" \
+    -H "Authorization: Bearer ${DCS_TOKEN}"
+----
++
+After the scan completes (~1-2 minutes), your files will appear in the catalog and be queryable through Lightspeed.
 
 [NOTE]
 ====
@@ -256,10 +312,11 @@ Get the route for the MCP HTTP endpoint:
 
 [source,bash,role=execute,subs="attributes+"]
 ----
-oc -n {dcs_namespace} get route dcs-mcp-route -o jsonpath='{.spec.host}'
+MCP_URL="https://$(oc -n {dcs_namespace} get route dcs-mcp-route -o jsonpath='{.spec.host}')/mcp/http"
+echo "MCP endpoint: ${MCP_URL}"
 ----
 
-Note this URL -- it is the MCP server endpoint. The actual MCP transport path is `/mcp/http` (Streamable HTTP). Lightspeed connects to this endpoint internally -- you do not need to configure anything manually.
+This is the Streamable HTTP endpoint that Lightspeed connects to. The workshop has already configured `OLSConfig` with this URL -- no manual configuration needed.
 
 == Hands-on: Explore the Catalog via OpenShift Lightspeed
 
@@ -268,6 +325,28 @@ Note this URL -- it is the MCP server endpoint. The actual MCP transport path is
 . Navigate to the OpenShift web console: {openshift_console_url}
 . Look for the *Lightspeed* icon in the top navigation bar (or the side panel)
 . Click to open the chat panel
+
+=== Step 8b: Authenticate with DCS
+
+Before querying the catalog, Lightspeed needs DCS credentials. In the chat panel, type:
+
+----
+Connect to DCS using username sdadmin and the cluster URL https://api.ocp.{cluster_domain}:6443
+----
+
+When Lightspeed asks for the password, retrieve it and provide it:
+
+[source,bash,role=execute,subs="attributes+"]
+----
+oc get secret keystone -n {dcs_namespace} -o jsonpath='{.data.password}' | base64 -d && echo
+----
+
+Lightspeed will call the `dcs_set_credentials` MCP tool to authenticate. You should see a confirmation message like "Token generated successfully for sdadmin".
+
+[TIP]
+====
+If Lightspeed does not recognize the DCS tools, verify that the MCP feature is enabled by checking for the chat panel's tool indicator. The `OLSConfig` must include `featureGates: ["MCPServer"]` and the `mcpServers` entry pointing to the DCS MCP route.
+====
 
 === Step 9: Query the Data Catalog
 
@@ -351,7 +430,7 @@ With the DCS MCP Server, an AI agent can perform these same operations in minute
 When a user asks a natural language question through Lightspeed:
 
 . *Lightspeed* sends the query to the *OpenAI GPT-4o* model
-. The model determines which *MCP tools* are needed (e.g., `list_datasets`, `get_metadata`, `apply_tag`)
+. The model determines which *MCP tools* are needed (e.g., `dcs_file_search`, `dcs_get_registered_tags`, `dcs_create_tag`)
 . Lightspeed sends *JSON-RPC 2.0* tool invocation requests to the *DCS MCP Server*
 . The MCP Server executes the operations against the *Data Catalog*
 . Results flow back through the chain to the user as a natural language response

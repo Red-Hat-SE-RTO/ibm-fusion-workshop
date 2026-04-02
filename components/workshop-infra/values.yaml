@@ -5,3 +5,5 @@ users: []
 
 workshopInfra:
   userNamespacePrefix: "workshop"
+  fusionNamespace: "ibm-spectrum-fusion-ns"
+  dcsNamespace: "ibm-data-cataloging"

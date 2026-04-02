@@ -6,3 +6,4 @@ lightspeed:
   llmProvider: openai
   llmModel: gpt-4o
   apiKeySecretName: openai-api-key
+  mcpServerUrl: "https://dcs-mcp-route-ibm-data-cataloging.apps.example.com/mcp/http"

@@ -4,6 +4,8 @@ metadata:
   name: cluster
   namespace: {{ .Values.lightspeed.namespace }}
 spec:
+  featureGates:
+    - MCPServer
   llm:
     providers:
       - name: {{ .Values.lightspeed.llmProvider }}
@@ -12,6 +14,10 @@ spec:
           name: {{ .Values.lightspeed.apiKeySecretName }}
         models:
           - name: {{ .Values.lightspeed.llmModel }}
+  mcpServers:
+    - name: dcs-catalog
+      url: {{ .Values.lightspeed.mcpServerUrl }}
+      timeout: 30
   ols:
     defaultModel: {{ .Values.lightspeed.llmModel }}
     defaultProvider: {{ .Values.lightspeed.llmProvider }}
