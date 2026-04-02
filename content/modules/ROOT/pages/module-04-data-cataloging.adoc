@@ -335,15 +335,24 @@ Run this command to build the ready-to-paste authentication message:
 [source,bash,role=execute,subs="attributes+"]
 ----
 DCS_PW=$(oc get secret keystone -n {dcs_namespace} -o jsonpath='{.data.password}' | base64 -d)
+API_URL=$(oc whoami --show-server)
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
 echo "║  Copy the message below and paste it into Lightspeed chat:  ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
-echo "Connect to DCS using username sdadmin password ${DCS_PW} and cluster URL https://api.ocp.{cluster_domain}:6443"
+echo "Use the dcs_set_credentials tool with these exact values:"
+echo "  cluster_url: ${API_URL}"
+echo "  username: sdadmin"
+echo "  password: ${DCS_PW}"
 ----
 
-Copy the output message and paste it into the Lightspeed chat panel. Lightspeed will call the `dcs_set_credentials` MCP tool automatically. You should see a confirmation: *"Token generated successfully for sdadmin"*.
+Copy the *entire* output (all four lines starting with "Use the dcs_set_credentials tool...") and paste it into the Lightspeed chat panel. The structured format ensures Lightspeed passes the parameters correctly to the MCP tool. You should see a confirmation: *"Token generated successfully for sdadmin"*.
+
+[WARNING]
+====
+Do *not* reword or shorten the message. The LLM needs the exact parameter names (`cluster_url`, `username`, `password`) and values to call the tool correctly. If the tool fails with "x-auth-token not found", double-check that the `cluster_url` matches `oc whoami --show-server` exactly.
+====
 
 [NOTE]
 ====
