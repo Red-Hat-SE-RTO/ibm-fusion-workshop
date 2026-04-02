@@ -4,6 +4,6 @@
 * xref:module-02-virtualization.adoc[Module 2: OpenShift Virtualization & Live Migration]
 * xref:module-03-data-protection.adoc[Module 3: Modern Data Protection]
 * xref:module-04-data-cataloging.adoc[Module 4: AI-Driven Data Cataloging with MCP]
-* xref:module-05-horizon.adoc[Module 5: The 4.20+ Horizon]
+* xref:module-05-horizon.adoc[Module 5: The 4.21 Horizon]
 * xref:references.adoc[References]
 * xref:conclusion.adoc[Conclusion & Wrap-up]

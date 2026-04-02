@@ -1,9 +1,9 @@
-= Module 5: The 4.20+ Horizon -- AI & Autonomic Operations
-:navtitle: Module 5: The 4.20+ Horizon
+= Module 5: The 4.21 Horizon -- AI & Autonomic Operations
+:navtitle: Module 5: The 4.21 Horizon
 
 [sidebar]
 ****
-*Duration:* 10 minutes +
+*Duration:* 15 minutes +
 *Type:* Presentation Only
 ****
 
@@ -11,8 +11,11 @@
 
 By the end of this module, you will:
 
-* Understand Autonomic Resource Optimization via CPU Load-Aware Rebalancing
-* Conceptually grasp how OpenShift is adapting to Generative AI workloads
+* Understand how the `KubeVirtRelieveAndMigrate` descheduler profile uses CPU Pressure Stall Information (PSI) to automate VM live migrations
+* Know how cross-cluster live migration enables zero-downtime VM movement between OpenShift clusters
+* Grasp how the Gateway API Inference Extension (GIE) and llm-d solve GPU-efficient LLM serving
+* Understand how IBM Content-Aware Storage turns passive storage into an active RAG pipeline participant
+* See how Dynamic Resource Allocation (DRA) replaces device plugins for intelligent GPU scheduling
 
 == Autonomic Virtualization: The Descheduler Evolution
 
@@ -20,27 +23,43 @@ By the end of this module, you will:
 
 In Module 2, you manually initiated a live migration of your VM. You decided *when* and *where* to move the workload. In production, this manual approach doesn't scale.
 
-=== What's Coming in 4.20+
+=== The KubeVirtRelieveAndMigrate Profile
 
-The OpenShift Descheduler is evolving to use *CPU Pressure Stall Information (PSI)* to automatically detect overloaded nodes and trigger live migrations.
+OpenShift 4.20 introduced the https://developers.redhat.com/blog/2025/06/03/dynamic-vm-cpu-workload-rebalancing-load-aware-descheduler[`KubeVirtRelieveAndMigrate`] descheduler profile, which uses real CPU utilization and https://docs.kernel.org/accounting/psi.html[Pressure Stall Information (PSI)] metrics to automatically detect overloaded nodes and trigger live migrations. This profile is carried forward and refined in 4.21.
 
-*How PSI-Based Rebalancing Works:*
+*How Two-Phase Rebalancing Works:*
 
-. The Descheduler monitors CPU PSI metrics on all nodes
-. When a node's PSI "some" threshold exceeds a configurable limit, it indicates workloads are stalling due to CPU contention
-. The Descheduler identifies the best candidate VMs to migrate
-. Live migrations are automatically initiated to balanced nodes
-. The result: *the platform automatically performs the exact live migration you did manually in Module 2*
+. *Phase 1 -- CPU Utilization Balancing:* The descheduler monitors actual CPU utilization across all nodes. When a node exceeds the cluster average by 10% or more, VMs are evicted from that overutilized node and migrated to underutilized nodes.
+. *Phase 2 -- PSI-Driven Relief:* When cluster-wide CPU utilization reaches 80%, raw utilization numbers become less meaningful. The descheduler switches to https://docs.kernel.org/accounting/psi.html[PSI CPU metrics], which quantify how much time workloads spend _stalled_ waiting for CPU. VMs are moved from high-pressure nodes to lower-pressure nodes.
+. When a VM pod is evicted, OpenShift Virtualization automatically triggers a *live migration* -- the same operation you performed manually in Module 2.
 
 ----
 Today (Manual):
   Admin notices node overloaded → Decides which VM to move → Triggers migration
 
-4.20+ (Autonomic):
-  PSI metrics detect contention → Descheduler selects VM → Auto-triggers migration
+4.21 (Autonomic):
+  PSI metrics detect contention → Descheduler selects VM → Auto-triggers live migration
 ----
 
-This transforms VM management from *reactive and manual* to *proactive and autonomous*.
+*Prerequisites and Configuration:*
+
+PSI metrics must be enabled on all worker nodes via a `MachineConfig` with kernel argument `psi=1`. The profile also supports https://docs.okd.io/4.21/virt/managing_vms/advanced_vm_management/virt-enabling-descheduler-evictions.html[soft-tainting] (`devEnableSoftTainter`), which dynamically applies scheduling hints at 60-second intervals so that _new_ VMs are placed on less-loaded nodes from the start.
+
+*Measured Results:*
+
+In https://developers.redhat.com/blog/2025/06/03/dynamic-vm-cpu-workload-rebalancing-load-aware-descheduler[Red Hat testing] with 130 VMs across a 12-worker cluster, CPU utilization standard deviation dropped from ~50% to 7%, and average vCPU wait time fell from over 100% to nearly zero.
+
+=== Cross-Cluster Live Migration (Tech Preview)
+
+OpenShift Virtualization 4.21 extends migration beyond a single cluster. https://redhat.com/en/blog/whats-new-red-hat-openshift-virtualization-421[Cross-cluster live migration] enables zero-downtime VM movement between two OpenShift clusters connected on the same L2 network segment. This is enabled through feature gates in OpenShift Virtualization and the https://docs.okd.io/4.21/virt/live_migration/virt-enabling-cclm-for-vms.html[Migration Toolkit for Virtualization (MTV)].
+
+Use cases include:
+
+* *Cluster maintenance* -- drain an entire cluster without VM downtime
+* *Geographic load balancing* -- shift VMs to clusters closer to users
+* *Disaster recovery preparation* -- pre-stage VMs on a standby cluster
+
+NOTE: Cross-cluster live migration is a *Technology Preview* feature in 4.21 and is not yet supported for production workloads.
 
 == AI Workload Optimization
 
@@ -57,56 +76,154 @@ A naive round-robin distributes requests to GPUs that may not have the right mod
 
 === Gateway API Inference Extension (GIE)
 
-The *Gateway API Inference Extension* solves this by adding inference-aware routing:
+The https://gateway-api-inference-extension.sigs.k8s.io/[Gateway API Inference Extension] solves this by transforming any Envoy-based gateway into an *inference-aware gateway*. GIE https://www.redhat.com/en/blog/red-hat-openshift-42-what-you-need-to-know[went GA in OpenShift 4.20] (November 2025) and is fully supported in 4.21.
 
-* Routes requests to GPUs that already have the target model loaded
-* Respects GPU memory pressure and queue depth
-* Enables model-aware autoscaling -- scale up when queue depth exceeds thresholds
-* Integrates with Kubernetes Gateway API (the successor to Ingress)
+GIE introduces two Custom Resource Definitions:
+
+* *`InferencePool`* -- defines a group of model-server pods on shared compute, with scaling and balancing policies
+* *`InferenceModel`* -- maps a user-facing model name to backend models within an InferencePool, supporting traffic splitting between model versions or https://www.cncf.io/blog/2025/04/21/deep-dive-into-the-gateway-api-inference-extension/[LoRA fine-tuned adapters]
+
+*Inference-Aware Routing Strategies:*
+
+* *Adapter-aware routing* -- directs requests to backends that already have the required LoRA adapter loaded, avoiding expensive GPU memory swaps
+* *Queue-aware scheduling* -- avoids overwhelmed backends by considering request queue depth
+* *Prefix-cache-aware routing* -- computes a prefix hash for each prompt and routes to the pod already holding that prefix cached, maximizing KV-cache hit rates
+* *Load shedding* -- safeguards system stability when all backends are heavily loaded
+
+=== llm-d: Kubernetes-Native Distributed Inference
+
+https://llm-d.ai/[llm-d] is a distributed LLM inference framework https://www.cncf.io/blog/2026/03/24/welcome-llm-d-to-the-cncf-evolving-kubernetes-into-sota-ai-infrastructure/[donated to the CNCF as a Sandbox project] in March 2026 by IBM Research, Red Hat, and Google Cloud. Founding partners include NVIDIA, CoreWeave, AMD, Cisco, Hugging Face, Intel, Lambda, and Mistral AI.
+
+llm-d sits between the inference engine (https://github.com/llm-d/llm-d[vLLM]) and the orchestration layer (KServe), implementing the Gateway API Inference Extension. It addresses three production bottlenecks:
+
+* *Resource imbalance* -- disaggregated serving separates Prefill (prompt processing) and Decode (token generation) into independently scalable pod pools
+* *KV-cache waste* -- hierarchical cache offloading tiers data across GPU HBM -> CPU DRAM -> NVMe, plus prefix caching for multi-tenant environments
+* *Routing inefficiency* -- the Endpoint Picker (EPP) replaces round-robin with prefix-cache-aware routing that maximizes cache hit rates
+
+The project's mission is *"any model, any accelerator, any cloud"* -- providing accelerator-neutral, vendor-agnostic inference infrastructure.
 
 === IBM Content-Aware Storage (CAS)
 
-For AI training pipelines, the storage bottleneck is often data loading. *IBM Content-Aware Storage* addresses this:
+Traditional storage is passive: it stores bytes and serves them on request. https://www.research.ibm.com/blog/content-aware-storage-generative-ai[IBM Content-Aware Storage] makes storage an *active participant* in AI pipelines by embedding NLP pipelines and a vector database directly into IBM Storage Scale.
 
-* *Semantic caching* -- frequently accessed training data is cached closer to compute
-* *Intelligent tiering* -- hot data automatically moves to faster storage (NVMe) while cold data stays on capacity tiers
-* *Pipeline-aware prefetching* -- storage predicts the next data batches based on the training loop pattern
+*How CAS Works:*
 
-Together, GIE and CAS optimize the two most expensive resources in an AI infrastructure: *GPU compute* and *high-performance storage I/O*.
+. CAS applies NLP techniques to extract semantic meaning from unstructured content -- text, charts, graphs, and images -- converting them into https://nand-research.com/research-note-ibm-content-aware-storage-for-rag-ai-workflows/[dense vector embeddings]
+. It automatically monitors file changes across heterogeneous storage systems and detects modifications
+. Only changed content is re-processed and updated in the vector database -- no full retraining cycles required
+. Applications query the embedded vector database for https://community.ibm.com/community/user/blogs/shu-mookerjee/2025/04/09/ibm-fusion-content-aware-storage[contextual, semantic retrieval] that goes beyond keyword matching
+
+*Enterprise Integration:*
+
+https://community.ibm.com/community/user/blogs/matthew-kelm/2026/02/23/unlocking-data-inference-speed-ibmfusionredhatai[IBM Fusion for Red Hat AI] combines CAS with OpenShift AI, KServe/vLLM, and GPU-accelerated inference into a sovereign on-premises AI platform. Validated deployments on https://community.ibm.com/community/user/blogs/purnanand-kumar/2026/02/06/building-enterprise-llmops-on-ibm-fusion-hci[Fusion HCI with OpenShift AI] enable direct GPU scheduling, low-latency storage access, and production-grade LLMOps.
+
+On the https://community.ibm.com/community/user/blogs/venkata-vamsikrishna-meduri/2026/02/08/evaluating-qa-accuracy-of-ibm-fusion-cas[BEIR benchmark suite], IBM Fusion CAS outperforms state-of-the-art information retrieval systems in question-answering accuracy through advanced embedding models, vector indexing, and re-ranking strategies.
+
+=== Dynamic Resource Allocation (DRA) for GPUs
+
+https://developers.redhat.com/articles/2026/03/25/dynamic-resource-allocation-goes-ga-red-hat-openshift-421-smarter-gpu[Dynamic Resource Allocation went GA in OpenShift 4.21], replacing the legacy device-plugin model for GPU scheduling. Built on Kubernetes 1.34's upstream DRA implementation, it enables workloads to request GPUs based on *device attributes* rather than simple counts.
+
+*What DRA enables:*
+
+* *Expression-driven GPU selection* -- filter by model, memory capacity, compute capability, and driver version using CEL expressions
+* *GPU sharing* -- multiple containers can share a single GPU
+* *Topology awareness* -- respect PCIe, NVLink, and NUMA placement for optimal data transfer
+* *MIG profiles* -- request specific Multi-Instance GPU partitions
+* *Cluster autoscaler integration* -- provision new GPU nodes based on pending DRA claims
+
+*DRA works through four Kubernetes resources:*
+
+* `ResourceSlice` -- DRA drivers publish available devices with typed attributes
+* `DeviceClass` -- admins define device categories using CEL selector expressions
+* `ResourceClaim` -- workloads request specific devices
+* `ResourceClaimTemplate` -- auto-generates per-pod claims
+
+*Queue Management with Kueue:*
+
+The https://developers.redhat.com/articles/2025/05/22/improve-gpu-utilization-kueue-openshift-ai[Red Hat build of Kueue 1.2] complements DRA with hierarchical quota management and priority scheduling for AI training jobs. In production, IBM achieved https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html-single/ai_workloads/index[90% GPU utilization] on its Vela platform using OpenShift with Kueue -- up from the 30-50% typical of ML platforms.
+
+Together, GIE + llm-d, CAS, and DRA + Kueue optimize the three most expensive resources in AI infrastructure: *GPU compute*, *high-performance storage I/O*, and *GPU scheduling efficiency*.
 
 == The Convergence Story
 
-What you experienced today maps directly to the 4.20+ roadmap:
+What you experienced today maps directly to what is now shipping in OpenShift 4.21:
 
 [cols="1,1,1"]
 |===
-|Today (This Workshop) |Tomorrow (4.20+) |Benefit
+|Today (This Workshop) |OpenShift 4.21 |Benefit
 
 |Manual live migration
-|PSI-based Descheduler auto-migration
-|Autonomic VM operations
+|PSI-based `KubeVirtRelieveAndMigrate` + cross-cluster live migration
+|Autonomic VM operations within and across clusters
 
 |Manual backup triggers
-|Policy-driven, CBT-optimized schedules
-|Zero-touch data protection
+|CBT-powered incremental backups (GA in 4.21)
+|Storage-agnostic zero-touch data protection
 
 |Static storage classes
-|Content-Aware Storage with intelligent tiering
-|AI-optimized data pipelines
+|Content-Aware Storage with real-time vector sync
+|AI-optimized RAG pipelines
 
 |Standard HTTP routing
-|Gateway API Inference Extension
-|GPU-efficient LLM serving
+|GIE (GA) + llm-d disaggregated serving
+|GPU-efficient LLM serving with cache-aware routing
+
+|Manual GPU allocation
+|DRA (GA) + Kueue 1.2 priority scheduling
+|Attribute-based GPU sharing with topology awareness
 |===
 
 == References
 
-* https://github.com/kubernetes-sigs/descheduler[Kubernetes Descheduler]
-* https://gateway-api.sigs.k8s.io/[Kubernetes Gateway API]
-* https://www.ibm.com/products/storage-fusion[IBM Storage Fusion -- Content-Aware Storage]
-* https://docs.redhat.com/en/documentation/openshift_container_platform/[OpenShift Container Platform Documentation]
+=== Autonomic Virtualization
+
+* https://developers.redhat.com/blog/2025/06/03/dynamic-vm-cpu-workload-rebalancing-load-aware-descheduler[Dynamic VM CPU Workload Rebalancing with Load Aware Descheduler -- Red Hat Developer]
+* https://developers.redhat.com/blog/2024/12/19/load-aware-rebalancing-openshift-virtualization[Load Aware Rebalancing with OpenShift Virtualization -- Red Hat Developer]
+* https://docs.okd.io/4.21/virt/managing_vms/advanced_vm_management/virt-enabling-descheduler-evictions.html[Enabling Descheduler Evictions on Virtual Machines -- OKD 4.21 Documentation]
+* https://github.com/openshift-virtualization/descheduler-psi-evaluation[Descheduler PSI Evaluation -- GitHub]
+* https://docs.kernel.org/accounting/psi.html[PSI - Pressure Stall Information -- Linux Kernel Documentation]
+* https://docs.okd.io/4.21/virt/live_migration/virt-enabling-cclm-for-vms.html[Enabling Cross-Cluster Live Migration for VMs -- OKD 4.21 Documentation]
+* https://redhat.com/en/blog/whats-new-red-hat-openshift-virtualization-421[What's New in Red Hat OpenShift Virtualization 4.21 -- Red Hat Blog]
+
+=== AI Inference: Gateway API Inference Extension & llm-d
+
+* https://gateway-api-inference-extension.sigs.k8s.io/[Gateway API Inference Extension -- Official Documentation]
+* https://github.com/kubernetes-sigs/gateway-api-inference-extension[Gateway API Inference Extension -- GitHub]
+* https://kubernetes.io/blog/2025/06/05/introducing-gateway-api-inference-extension[Introducing Gateway API Inference Extension -- Kubernetes Blog]
+* https://www.cncf.io/blog/2025/04/21/deep-dive-into-the-gateway-api-inference-extension/[Deep Dive into the Gateway API Inference Extension -- CNCF]
+* https://www.redhat.com/en/blog/red-hat-openshift-42-what-you-need-to-know[Red Hat OpenShift 4.20: Accelerating Virtualization and AI Innovation -- Red Hat Blog]
+* https://developers.redhat.com/articles/2026/03/24/run-model-service-multiple-llms-openshift[Run Model-as-a-Service for Multiple LLMs on OpenShift -- Red Hat Developer]
+* https://llm-d.ai/[llm-d -- Official Site]
+* https://github.com/llm-d/llm-d[llm-d -- GitHub]
+* https://www.cncf.io/blog/2026/03/24/welcome-llm-d-to-the-cncf-evolving-kubernetes-into-sota-ai-infrastructure/[Welcome llm-d to the CNCF -- CNCF Blog]
+
+=== IBM Content-Aware Storage
+
+* https://www.research.ibm.com/blog/content-aware-storage-generative-ai[Content-Aware Storage for the Generative AI Era -- IBM Research]
+* https://community.ibm.com/community/user/blogs/shu-mookerjee/2025/04/09/ibm-fusion-content-aware-storage[IBM Fusion Content-Aware Storage: Making Data Better, Faster and Stronger -- IBM Community]
+* https://nand-research.com/research-note-ibm-content-aware-storage-for-rag-ai-workflows/[IBM Content-Aware Storage for RAG AI Workflows -- NAND Research]
+* https://community.ibm.com/community/user/blogs/venkata-vamsikrishna-meduri/2026/02/08/evaluating-qa-accuracy-of-ibm-fusion-cas[IBM Fusion CAS Outshines State-of-the-Art RAG Benchmark Suite -- IBM Community]
+* https://community.ibm.com/community/user/blogs/matthew-kelm/2026/02/23/unlocking-data-inference-speed-ibmfusionredhatai[Unlocking Dark Data at the Speed of Inference: IBM Fusion for Red Hat AI -- IBM Community]
+* https://community.ibm.com/community/user/blogs/purnanand-kumar/2026/02/06/building-enterprise-llmops-on-ibm-fusion-hci[Building Enterprise LLMOps on IBM Fusion HCI with OpenShift AI -- IBM Community]
+
+=== GPU Scheduling & AI Training
+
+* https://developers.redhat.com/articles/2026/03/25/dynamic-resource-allocation-goes-ga-red-hat-openshift-421-smarter-gpu[Dynamic Resource Allocation Goes GA in OpenShift 4.21 -- Red Hat Developer]
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html-single/ai_workloads/index[AI Workloads -- OpenShift Container Platform 4.21 Documentation]
+* https://developers.redhat.com/articles/2025/05/22/improve-gpu-utilization-kueue-openshift-ai[Improve GPU Utilization with Kueue in OpenShift AI -- Red Hat Developer]
+
+=== Platform
+
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/release_notes/ocp-4-21-release-notes[OpenShift Container Platform 4.21 Release Notes -- Red Hat Documentation]
+* https://redhat.com/en/blog/red-hat-openshift-421-smarter-scaling-faster-migration-and-ai-powered-efficiency[Red Hat OpenShift 4.21: Smarter Scaling, Faster Migration, and AI-Powered Efficiency -- Red Hat Blog]
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/virtualization/release-notes[OpenShift Virtualization 4.21 Release Notes -- Red Hat Documentation]
 
 [TIP]
 ====
-*Facilitator Notes:* Keep this highly strategic. Hit two main points: (1) The 4.20 Descheduler will use CPU PSI to automatically trigger the live migrations attendees just performed manually. (2) Standard HTTP load balancing fails for LLMs -- introduce GIE and CAS as solutions for optimizing GPU investments.
+*Facilitator Notes:* This module covers four key themes. Adjust depth based on audience:
+
+. *Autonomic VM Operations* -- The `KubeVirtRelieveAndMigrate` descheduler profile automates exactly what attendees did manually in Module 2. Emphasize the two-phase approach (CPU utilization then PSI) and the measured results (std-dev from 50% to 7%). Mention cross-cluster live migration as the next frontier (Tech Preview).
+. *GPU-Efficient Inference* -- Standard load balancing fails for LLMs. GIE (GA since 4.20) adds inference-aware routing. llm-d (CNCF Sandbox, March 2026) builds on GIE with disaggregated serving and prefix-cache-aware routing. This is a joint IBM Research, Red Hat, and Google Cloud effort.
+. *Content-Aware Storage* -- CAS makes storage an active RAG participant rather than a passive byte store. Key message: storage that _understands_ your data eliminates the semantic gap between where enterprise data lives and what AI needs.
+. *DRA for GPUs* -- GA in 4.21, replacing device plugins. Enables expression-driven GPU selection, sharing, and topology awareness. Pair with Kueue for queue management. IBM achieved 90% GPU utilization on its Vela platform.
 ====
