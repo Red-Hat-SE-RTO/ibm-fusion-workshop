@@ -423,19 +423,23 @@ image::lightspeed-recommend-tags.png[Lightspeed recommending tags based on file 
 +
 * "Create a tag called DOC_CATEGORY with type VARCHAR(256)"
 +
-. Create an auto-tagging policy. You must be very explicit about the parameter format -- spell out each field including the JSON `tags` map with *UPPERCASE* tag names:
+. Create an auto-tagging policy. Describe each parameter on its own line so the LLM maps them correctly -- especially `tags`, which must be passed as a JSON object, not a string:
 +
-* "Use the dcs_create_policy tool with policyName: classify-pdfs, polFilter: filetype='pdf', schedule: NOW, tags: \{"DOC_CATEGORY": "reference-guide"}"
+----
+Call the dcs_create_policy tool with these parameters:
+  policyName = classify-pdfs
+  polFilter = filetype='pdf'
+  schedule = NOW
+  tags = map with key DOC_CATEGORY and value reference-guide
+----
 +
 [TIP]
 ====
-*Why so explicit?* The `dcs_create_policy` tool has strict requirements:
+*Why so specific?* The `dcs_create_policy` tool has strict requirements:
 
-* `tags` must be a JSON object (map), not a string -- e.g. `{"DOC_CATEGORY": "reference-guide"}`
-* Tag names must be *UPPERCASE* -- `DOC_CATEGORY` works, `doc_category` fails with "Invalid tag in policy action params"
+* `tags` must be a JSON object (map), not a string. Writing it as `tags: {"DOC_CATEGORY": "reference-guide"}` in the prompt confuses some LLMs -- they drop the parameter or pass it as a string. Phrasing it as _"map with key X and value Y"_ reliably produces the correct JSON object.
+* Tag names must be *UPPERCASE* -- `DOC_CATEGORY` works, `doc_category` fails with "Invalid tag in policy action params."
 * `polFilter` uses SQL-like syntax -- `filetype='pdf'` or `filename LIKE '%customer%'`
-
-If Lightspeed gets the format wrong, paste the exact tool call format above.
 ====
 +
 . Verify what was created:
@@ -462,7 +466,13 @@ This exercise mirrors the use case described in the https://community.ibm.com/co
 +
 . Create a policy to tag files that may contain personal information:
 +
-* "Use the dcs_create_policy tool with policyName: tag-sensitive-files, polFilter: filename LIKE '%customer%', schedule: NOW, tags: \{"SENSITIVITY": "pii-likely"}"
+----
+Call the dcs_create_policy tool with these parameters:
+  policyName = tag-sensitive-files
+  polFilter = filename LIKE '%customer%'
+  schedule = NOW
+  tags = map with key SENSITIVITY and value pii-likely
+----
 +
 . Check what was tagged:
 +
