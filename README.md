@@ -17,7 +17,7 @@ Helm App of Apps pattern.
 | 2 | 30 min | Hands-on Lab | OpenShift Virtualization & RWX Live Migration |
 | 3 | 25 min | Hands-on Lab | Modern Data Protection (CBT & Backups) |
 | 4 | 20 min | Hands-on Lab / Presentation | AI-Driven Data Cataloging with MCP |
-| 5 | 10 min | Presentation | The 4.20+ Horizon: AI & Autonomic Operations |
+| 5 | 15 min | Presentation | The 4.21 Horizon: AI & Autonomic Operations |
 
 ## Architecture
 
@@ -193,10 +193,45 @@ AgnosticD directly, the following mapping applies:
 - [Red Hat OpenShift Lightspeed](https://docs.redhat.com/en/documentation/red_hat_openshift_lightspeed/)
 - [Exploring your Catalog with Natural Language through MCP (IBM Community)](https://community.ibm.com/community/user/blogs/paul-llamas-virgen/2026/03/06/exploring-your-fusion-data-catalog-with-nlp)
 
-### Forward-Looking
-- [Kubernetes Descheduler](https://github.com/kubernetes-sigs/descheduler)
-- [Kubernetes Gateway API](https://gateway-api.sigs.k8s.io/)
-- [IBM Content-Aware Storage](https://www.ibm.com/products/storage-fusion)
+### OpenShift 4.21 & The Horizon (Module 5)
+
+**Autonomic Virtualization**
+- [Dynamic VM CPU Workload Rebalancing with Load Aware Descheduler](https://developers.redhat.com/blog/2025/06/03/dynamic-vm-cpu-workload-rebalancing-load-aware-descheduler)
+- [Load Aware Rebalancing with OpenShift Virtualization](https://developers.redhat.com/blog/2024/12/19/load-aware-rebalancing-openshift-virtualization)
+- [Enabling Descheduler Evictions on VMs (OKD 4.21)](https://docs.okd.io/4.21/virt/managing_vms/advanced_vm_management/virt-enabling-descheduler-evictions.html)
+- [Descheduler PSI Evaluation Repository](https://github.com/openshift-virtualization/descheduler-psi-evaluation)
+- [PSI - Pressure Stall Information (Linux Kernel)](https://docs.kernel.org/accounting/psi.html)
+- [Cross-Cluster Live Migration (OKD 4.21)](https://docs.okd.io/4.21/virt/live_migration/virt-enabling-cclm-for-vms.html)
+- [What's New in OpenShift Virtualization 4.21](https://redhat.com/en/blog/whats-new-red-hat-openshift-virtualization-421)
+
+**AI Inference: Gateway API Inference Extension & llm-d**
+- [Gateway API Inference Extension (Official Docs)](https://gateway-api-inference-extension.sigs.k8s.io/)
+- [Gateway API Inference Extension (GitHub)](https://github.com/kubernetes-sigs/gateway-api-inference-extension)
+- [Introducing Gateway API Inference Extension (Kubernetes Blog)](https://kubernetes.io/blog/2025/06/05/introducing-gateway-api-inference-extension)
+- [Deep Dive into GIE (CNCF)](https://www.cncf.io/blog/2025/04/21/deep-dive-into-the-gateway-api-inference-extension/)
+- [OpenShift 4.20: Accelerating Virtualization and AI](https://www.redhat.com/en/blog/red-hat-openshift-42-what-you-need-to-know)
+- [Run Model-as-a-Service for Multiple LLMs on OpenShift](https://developers.redhat.com/articles/2026/03/24/run-model-service-multiple-llms-openshift)
+- [llm-d (Official Site)](https://llm-d.ai/)
+- [llm-d (GitHub)](https://github.com/llm-d/llm-d)
+- [Welcome llm-d to the CNCF](https://www.cncf.io/blog/2026/03/24/welcome-llm-d-to-the-cncf-evolving-kubernetes-into-sota-ai-infrastructure/)
+
+**IBM Content-Aware Storage**
+- [Content-Aware Storage for the Generative AI Era (IBM Research)](https://www.research.ibm.com/blog/content-aware-storage-generative-ai)
+- [IBM Fusion CAS: Making Data Better, Faster and Stronger](https://community.ibm.com/community/user/blogs/shu-mookerjee/2025/04/09/ibm-fusion-content-aware-storage)
+- [IBM CAS for RAG AI Workflows (NAND Research)](https://nand-research.com/research-note-ibm-content-aware-storage-for-rag-ai-workflows/)
+- [IBM Fusion CAS vs State-of-the-Art RAG Benchmarks](https://community.ibm.com/community/user/blogs/venkata-vamsikrishna-meduri/2026/02/08/evaluating-qa-accuracy-of-ibm-fusion-cas)
+- [IBM Fusion for Red Hat AI](https://community.ibm.com/community/user/blogs/matthew-kelm/2026/02/23/unlocking-data-inference-speed-ibmfusionredhatai)
+- [Building Enterprise LLMOps on Fusion HCI with OpenShift AI](https://community.ibm.com/community/user/blogs/purnanand-kumar/2026/02/06/building-enterprise-llmops-on-ibm-fusion-hci)
+
+**GPU Scheduling & AI Training**
+- [Dynamic Resource Allocation Goes GA in OpenShift 4.21](https://developers.redhat.com/articles/2026/03/25/dynamic-resource-allocation-goes-ga-red-hat-openshift-421-smarter-gpu)
+- [AI Workloads (OCP 4.21 Docs)](https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html-single/ai_workloads/index)
+- [Improve GPU Utilization with Kueue in OpenShift AI](https://developers.redhat.com/articles/2025/05/22/improve-gpu-utilization-kueue-openshift-ai)
+
+**Platform Release Notes**
+- [OpenShift 4.21 Release Notes](https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/release_notes/ocp-4-21-release-notes)
+- [OpenShift 4.21: Smarter Scaling, Faster Migration, AI-Powered Efficiency](https://redhat.com/en/blog/red-hat-openshift-421-smarter-scaling-faster-migration-and-ai-powered-efficiency)
+- [OpenShift Virtualization 4.21 Release Notes](https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/virtualization/release-notes)
 
 ### Workshop Infrastructure
 - [Showroom Deployer](https://github.com/rhpds/showroom-deployer)
