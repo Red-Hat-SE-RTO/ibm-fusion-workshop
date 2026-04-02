@@ -25,15 +25,20 @@ Helm App of Apps pattern.
 GitHub Repository
   │
   └─► ArgoCD (App of Apps)
-        ├─► workshop-infra ────► Per-user Namespaces + RBAC
-        ├─► showroom-user1 ────► Showroom Pod (showroom-deployer chart)
-        ├─► showroom-user2 ────► Showroom Pod (showroom-deployer chart)
-        └─► showroom-userN ────► Showroom Pod (showroom-deployer chart)
+        ├─► machineset ─────────► Extra worker MachineSet (sync-wave 0)
+        ├─► rhacm ──────────────► Red Hat ACM operator (sync-wave 0)
+        ├─► workshop-infra ─────► Per-user Namespaces + RBAC (sync-wave 1)
+        ├─► dcs ────────────────► IBM Data Cataloging Service (sync-wave 1)
+        ├─► lightspeed ─────────► OpenShift Lightspeed + MCP (sync-wave 1)
+        ├─► dcs-setup ──────────► Sample data + DCS configuration (sync-wave 2)
+        ├─► showroom-user1 ─────► Showroom Pod (showroom-deployer chart, sync-wave 2)
+        ├─► showroom-user2 ─────► Showroom Pod
+        └─► showroom-userN ─────► Showroom Pod
 ```
 
 Each user gets their own [Showroom](https://github.com/rhpds/showroom-deployer)
-instance deployed via the official `showroom-single-pod` Helm chart with
-per-user `user_data` attributes injected through ArgoCD.
+instance deployed via the official `showroom-single-pod` Helm chart (v1.3.4)
+with per-user `user_data` attributes injected through ArgoCD.
 
 ## Prerequisites
 
@@ -41,10 +46,32 @@ per-user `user_data` attributes injected through ArgoCD.
 - Must be provisioned **90 minutes prior** to session start
 - OpenShift GitOps (ArgoCD) operator installed on the cluster
 - `oc` and `helm` CLI tools available
+- An OpenAI API key (for OpenShift Lightspeed in Module 4)
 
-## Quick Start
+## Deployment
 
-### 1. Clone and configure
+### Option A: AgnosticD v2 (Recommended for RHDP)
+
+See [`agnosticd/README.md`](agnosticd/README.md) for the full AgnosticD deployment path. Quick summary:
+
+```bash
+# Copy the vars file into your agnosticd-v2-vars directory
+cp agnosticd/vars/ibm-fusion-workshop.yml ~/Development/agnosticd-v2-vars/
+
+# Provision (from the agnosticd-v2 directory)
+cd ~/Development/agnosticd-v2
+./bin/agd provision -g myfusion -c ibm-fusion-workshop -a <your-account>
+```
+
+This provisions the base OCP cluster and runs the `ocp4_workload_field_content`
+workload, which creates an ArgoCD Application pointing to this repository.
+ArgoCD then deploys all components automatically.
+
+### Option B: Manual Helm Deployment
+
+Use this if you already have a running OCP cluster with IBM Fusion and ODF.
+
+#### 1. Clone and configure
 
 ```bash
 git clone https://github.com/Red-Hat-SE-RTO/ibm-fusion-workshop.git
@@ -55,16 +82,26 @@ Edit `values.yaml`:
 - Set `deployer.domain` to your cluster's apps domain
 - Set `gitops.repoUrl` and `components.showroom.content.repoUrl` to your GitHub repo URL
 - Set `workshop.openshift_console_url` and `workshop.fusion_ui_url` for your cluster
+- Set `components.machineset.*` for your cluster's infrastructure ID, AMI, region, and AZ
 - Add/remove entries under `users:` for the number of participants
 
-### 2. Push to GitHub
+#### 2. Create the OpenAI API key secret
+
+```bash
+oc create namespace openshift-lightspeed 2>/dev/null || true
+oc create secret generic openai-api-key \
+  -n openshift-lightspeed \
+  --from-literal=api-key='<YOUR_OPENAI_API_KEY>'
+```
+
+#### 3. Push to GitHub
 
 ```bash
 git add -A && git commit -m "Configure workshop for my cluster"
 git push origin main
 ```
 
-### 3. Deploy via ArgoCD
+#### 4. Deploy via ArgoCD
 
 ```bash
 oc login --token=<token> --server=<api-url>
@@ -72,20 +109,24 @@ oc login --token=<token> --server=<api-url>
 helm template workshop . | oc apply -f -
 ```
 
-This creates the root ArgoCD Applications which automatically sync:
-- `workshop-infra` -- per-user namespaces and RBAC
-- `showroom-<user>` -- one Showroom lab guide per user (via showroom-deployer chart)
+This creates the root ArgoCD Applications which automatically sync in order:
+- **sync-wave 0:** `machineset` (extra worker nodes), `rhacm` (Advanced Cluster Management)
+- **sync-wave 1:** `workshop-infra` (per-user namespaces + RBAC), `dcs` (Data Cataloging), `lightspeed` (OpenShift Lightspeed)
+- **sync-wave 2:** `dcs-setup` (sample data + DCS config), `showroom-<user>` (one Showroom lab guide per user)
 
-### 4. Verify
+#### 5. Verify
 
 ```bash
 # Check ArgoCD applications
 oc get applications -n openshift-gitops
 
-# Check showroom pods
-oc get pods -n showroom-user1
+# Check all showroom pods
+for ns in $(oc get ns -o name | grep showroom); do
+  echo "=== $ns ==="
+  oc get pods -n "${ns##*/}"
+done
 
-# Get showroom route
+# Get showroom route for user1
 oc get route -n showroom-user1
 ```
 
@@ -94,18 +135,23 @@ oc get route -n showroom-user1
 ```
 ibm-fusion-workshop/
 ├── Chart.yaml                    # Master Helm chart
-├── values.yaml                   # Central configuration
+├── values.yaml                   # Central configuration (all tunables)
+├── default-site.yml              # Antora playbook for GitHub Pages build
 ├── templates/
 │   ├── _helpers.tpl
-│   └── applications.yaml         # ArgoCD App of Apps (infra + per-user showroom)
+│   └── applications.yaml         # ArgoCD App of Apps (all components + per-user showroom)
 ├── components/
-│   └── workshop-infra/           # Per-user namespaces and RBAC
-│       ├── Chart.yaml
-│       ├── values.yaml
-│       └── templates/
-│           ├── namespaces.yaml
-│           ├── rbac.yaml
-│           └── network-policies.yaml
+│   ├── machineset/               # Extra worker MachineSet for capacity
+│   ├── rhacm/                    # Red Hat Advanced Cluster Management operator
+│   ├── workshop-infra/           # Per-user namespaces + RBAC + network policies
+│   ├── dcs/                      # IBM Fusion Data Cataloging Service instance
+│   ├── dcs-setup/                # Sample data upload + DCS connection config
+│   ├── lightspeed/               # OpenShift Lightspeed operator + MCP config
+│   └── (showroom is deployed via external chart, not a local component)
+├── agnosticd/                    # AgnosticD v2 deployment path
+│   ├── README.md                 # Full AgnosticD deployment instructions
+│   └── vars/
+│       └── ibm-fusion-workshop.yml  # AgnosticD vars file
 ├── content/                      # Showroom Antora lab guide
 │   ├── antora.yml
 │   └── modules/ROOT/
@@ -123,6 +169,8 @@ ibm-fusion-workshop/
 │           ├── module-05-horizon.adoc
 │           ├── references.adoc
 │           └── conclusion.adoc
+├── .github/workflows/
+│   └── gh-pages.yml              # GitHub Pages build via Antora
 └── README.md
 ```
 
@@ -145,14 +193,14 @@ Each user gets:
 
 ## AgnosticD Variable Mapping
 
-This workshop uses the Field-Sourced Content Helm path. For integration with
-AgnosticD directly, the following mapping applies:
+This workshop uses the Field-Sourced Content Helm path via the
+`ocp4_workload_field_content` workload. The AgnosticD vars file is at
+[`agnosticd/vars/ibm-fusion-workshop.yml`](agnosticd/vars/ibm-fusion-workshop.yml).
 
 | Helm Value | AgnosticD Variable | Description |
 |------------|-------------------|-------------|
-| `components.showroom.content.repoUrl` | `ocp4_workload_showroom_content_git_repo` | Lab content git repo |
-| `components.showroom.content.repoRef` | `ocp4_workload_showroom_content_git_repo_ref` | Git branch/tag |
-| `components.showroom.chartVersion` | `ocp4_workload_showroom_deployer_chart_version` | Showroom chart version |
+| `gitops.repoUrl` / `components.showroom.content.repoUrl` | `ocp4_workload_field_content_gitops_repo_url` | Workshop git repo |
+| `gitops.revision` / `components.showroom.content.repoRef` | `ocp4_workload_field_content_gitops_repo_ref` | Git branch/tag |
 | `deployer.domain` | `cluster_domain` (auto-injected) | Cluster apps domain |
 
 ## Technology Stack
@@ -163,7 +211,9 @@ AgnosticD directly, the following mapping applies:
 | OpenShift Data Foundation (ODF) | 4.18 |
 | IBM Storage Fusion | 2.12 |
 | OpenShift Virtualization | 4.18 |
-| Showroom Deployer | ^2.0.0 |
+| Red Hat ACM | 2.14 |
+| OpenShift Lightspeed | stable |
+| Showroom Deployer | 1.3.4 |
 
 ## External References
 
