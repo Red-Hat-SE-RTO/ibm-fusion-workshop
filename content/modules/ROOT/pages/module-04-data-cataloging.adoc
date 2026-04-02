@@ -326,57 +326,86 @@ This is the Streamable HTTP endpoint that Lightspeed connects to. The workshop h
 . Look for the *Lightspeed* icon in the top navigation bar (or the side panel)
 . Click to open the chat panel
 
-=== Step 8b: Authenticate with DCS
+=== Step 8b: Authenticate Lightspeed with DCS
 
-Before querying the catalog, Lightspeed needs DCS credentials. In the chat panel, type:
+The DCS MCP Server has its own authentication layer (IBM Keystone) that is *separate* from OpenShift RBAC. Even though Lightspeed already knows the MCP endpoint URL, each chat session must authenticate with DCS credentials before any catalog queries will work. This is a one-time step per conversation.
 
-----
-Connect to DCS using username sdadmin and the cluster URL https://api.ocp.{cluster_domain}:6443
-----
-
-When Lightspeed asks for the password, retrieve it and provide it:
+Run this command to build the ready-to-paste authentication message:
 
 [source,bash,role=execute,subs="attributes+"]
 ----
-oc get secret keystone -n {dcs_namespace} -o jsonpath='{.data.password}' | base64 -d && echo
+DCS_PW=$(oc get secret keystone -n {dcs_namespace} -o jsonpath='{.data.password}' | base64 -d)
+echo ""
+echo "╔══════════════════════════════════════════════════════════════╗"
+echo "║  Copy the message below and paste it into Lightspeed chat:  ║"
+echo "╚══════════════════════════════════════════════════════════════╝"
+echo ""
+echo "Connect to DCS using username sdadmin password ${DCS_PW} and cluster URL https://api.ocp.{cluster_domain}:6443"
 ----
 
-Lightspeed will call the `dcs_set_credentials` MCP tool to authenticate. You should see a confirmation message like "Token generated successfully for sdadmin".
+Copy the output message and paste it into the Lightspeed chat panel. Lightspeed will call the `dcs_set_credentials` MCP tool automatically. You should see a confirmation: *"Token generated successfully for sdadmin"*.
+
+[NOTE]
+====
+*Why is this needed?* The DCS MCP Server is a multi-tenant gateway -- it does not inherit your OpenShift identity. Each session authenticates with DCS-specific credentials (the `sdadmin` user and Keystone password) via a JSON-RPC tool call (`dcs_set_credentials`). This keeps the MCP protocol portable across different LLM clients while maintaining DCS's own access control.
+====
 
 [TIP]
 ====
-If Lightspeed does not recognize the DCS tools, verify that the MCP feature is enabled by checking for the chat panel's tool indicator. The `OLSConfig` must include `featureGates: ["MCPServer"]` and the `mcpServers` entry pointing to the DCS MCP route.
+If Lightspeed does not recognize the DCS tools, verify that the MCP feature is enabled by checking the chat panel's tool indicator. The `OLSConfig` must include `featureGates: ["MCPServer"]` and the `mcpServers` entry pointing to the DCS MCP route.
 ====
 
 === Step 9: Query the Data Catalog
 
-With the DCS MCP Server enabled and sample data scanned, try the following natural language queries in the Lightspeed chat panel. The AI will translate your questions into SQL queries against the METAOCEAN catalog table via MCP tool calls.
+With authentication complete, try the following natural language queries in the Lightspeed chat panel.
+
+[NOTE]
+====
+*How it works under the hood:* When you ask a question, GPT-4o translates it into a SQL query against the DCS `METAOCEAN` table and calls the `dcs_file_search` MCP tool to execute it. For example, asking _"What file types are in the catalog?"_ generates something like `SELECT FILETYPE, COUNT(*) AS CNT FROM METAOCEAN GROUP BY FILETYPE`. The MCP server runs the SQL and returns structured results, which Lightspeed presents as a natural language summary.
+====
 
 *Discovery queries:*
 
-* "How many files are in the data catalog?"
-* "What file types are present and how many of each?"
-* "Show me all PDF documents in the catalog"
+* "How many total files are in the data catalog?"
+* "What file types are present in the catalog and how many of each?"
+* "Show me all PDF documents with their filenames and sizes"
 
 *Metadata exploration:*
 
-* "What are the 10 largest files by size?"
-* "Show me all files in the logs/ directory"
-* "Which files were most recently added to the catalog?"
-* "List all CSV files and their sizes"
+* "What are the 10 largest files in the catalog by size?"
+* "Show me all files under the logs/ directory path"
+* "Which files were most recently added to the catalog? Sort by insert time."
+* "List all CSV files with their filenames, sizes, and paths"
+
+*Tags and governance:*
+
+* "What tags are currently registered in the system?"
+* "What policies exist in the catalog?"
 
 === Step 10: AI-Driven Tagging and Classification
 
-MCP enables the LLM to not just read the catalog, but also *enrich* it. Try the following:
+MCP enables the LLM to not just read the catalog, but also *enrich* it. The available tools include `dcs_create_tag`, `dcs_create_policy`, `dcs_get_recommend_tags`, and `dcs_get_registered_tags`. Try the following:
 
-* "Recommend tags for classifying the files in the catalog based on their types and paths"
+. First, ask Lightspeed to analyze your data:
++
+* "Analyze the file types and paths in the catalog and recommend meaningful tags for classifying them"
++
+. Then create a tag:
++
 * "Create a tag called doc_category with type VARCHAR(256)"
++
+. Create an auto-tagging policy:
++
 * "Create an AUTOTAG policy named classify-pdfs that tags all PDF files with doc_category=reference-guide"
-* "What tags are currently registered in the system?"
++
+. Verify what was created:
++
+* "Show me all registered tags and their types"
+* "List all policies in the system"
 
 [IMPORTANT]
 ====
-The LLM can *propose and apply* tags programmatically through MCP tool calls. This transforms catalog maintenance from a manual, transactional process into an intelligent, conversational workflow.
+The LLM can *propose and apply* tags programmatically through MCP tool calls. This transforms catalog maintenance from a manual, transactional process into an intelligent, conversational workflow. Each action calls a specific MCP tool -- you can watch the tool invocations in the Lightspeed chat as they happen.
 ====
 
 === Step 11: Security Risk Assessment
