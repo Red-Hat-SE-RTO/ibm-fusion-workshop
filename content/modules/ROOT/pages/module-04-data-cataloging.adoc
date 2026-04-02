@@ -472,32 +472,45 @@ image::dcs-tag-management.png[DCS Tag Management showing created tags]
 This demonstrates a real-world pattern: LLMs excel at *reading* data through MCP tools (queries, listing tags, summarizing metadata) but can be unreliable when *writing* (creating policies with complex nested parameters). Robust implementations use MCP for discovery and conversational analysis, with programmatic fallbacks for mutations.
 ====
 
-=== Step 11: Verify Policy Results and Assess Coverage
+=== Step 11: Explore the Catalog with Natural Language
 
-Now that the `classify-pdfs` policy has executed, use Lightspeed to verify the results and assess classification coverage.
+Now use Lightspeed to explore the catalog using only natural language -- no SQL required. The LLM translates each question into SQL behind the scenes via MCP tool calls.
 
-. Verify which files were tagged by the policy. Give the LLM the SQL directly -- custom tag names like `DOC_CATEGORY` are valid column names in the METAOCEAN table, but the tool schema only advertises generic `tag1-tag16`, so the LLM won't discover them on its own:
+. Verify the policy you created is active and has completed:
 +
-* "Run this query: SELECT FILENAME, DOC_CATEGORY FROM METAOCEAN WHERE FILETYPE = 'pdf'"
+* "List all policies in the system and their execution status"
 +
-You should see all 3 PDFs tagged with `reference-guide`.
+_(Lightspeed calls `dcs_get_policies`)_ -- You should see `classify-pdfs` with action `AUTOTAG`, status `complete`, and 3 files processed.
 +
-. Assess classification coverage:
+. Explore the catalog by file type:
 +
-* "Run this query: SELECT CASE WHEN DOC_CATEGORY IS NOT NULL AND DOC_CATEGORY <> '' THEN 'classified' ELSE 'unclassified' END AS STATUS, COUNT(*) AS CNT FROM METAOCEAN GROUP BY STATUS"
+* "What file types are present in the catalog and how many of each?"
 +
-You should see 3 classified and 22 unclassified out of 25 total -- highlighting the gap.
+_(Lightspeed calls `dcs_file_search`)_ -- You should see yaml (13), csv (3), json (3), log (3), pdf (3) totaling 25 files.
 +
-. Identify files that may need attention based on their names:
+. Identify files that may need attention based on naming patterns:
 +
 * "Which files have names containing 'customer' or 'audit'? Show the filename, filetype, and size."
 +
-Lightspeed will find `customer-directory.csv` and `api-audit-2026-03-31.log` -- files that could contain PII or sensitive operations data, but are not yet classified.
+_(Lightspeed calls `dcs_file_search`)_ -- Lightspeed will find `customer-directory.csv` (4,580 bytes) and `api-audit-2026-03-31.log` (13,299 bytes) -- files that could contain PII or sensitive operations data.
 +
-. Explore further:
+. Analyze storage consumption:
 +
 * "What is the total storage consumed by each file type?"
-* "Show me all YAML files under the manifests/ directory -- do any look like they contain credentials or secrets?"
++
+_(Lightspeed calls `dcs_file_search`)_ -- You will see PDFs dominate at ~6.9 MB (documentation), while YAML manifests consume only ~5 KB despite having the most files.
++
+. Check the most recent additions:
++
+* "What are the 5 most recently added files in the catalog?"
++
+_(Lightspeed calls `dcs_file_search`)_ -- Shows the latest files by insertion timestamp.
++
+. Review the tag landscape:
++
+* "What tags are currently registered in the system?"
++
+_(Lightspeed calls `dcs_get_registered_tags`)_ -- Lists all tags with their data types: COLLECTION, TEMPERATURE, DOC_CATEGORY, and any others you created.
 
 [NOTE]
 ====
