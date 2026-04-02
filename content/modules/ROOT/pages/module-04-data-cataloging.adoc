@@ -472,59 +472,36 @@ image::dcs-tag-management.png[DCS Tag Management showing created tags]
 This demonstrates a real-world pattern: LLMs excel at *reading* data through MCP tools (queries, listing tags, summarizing metadata) but can be unreliable when *writing* (creating policies with complex nested parameters). Robust implementations use MCP for discovery and conversational analysis, with programmatic fallbacks for mutations.
 ====
 
-=== Step 11: Security Risk Assessment
+=== Step 11: Verify Policy Results and Assess Coverage
 
-This exercise mirrors the use case described in the https://community.ibm.com/community/user/blogs/paul-llamas-virgen/2026/03/06/exploring-your-fusion-data-catalog-with-nlp[IBM Community article]. You will create a security classification tag, apply it to potentially sensitive files, and then generate a posture summary.
+Now that the `classify-pdfs` policy has executed, use Lightspeed to verify the results and assess classification coverage.
 
-. First, create a security classification tag:
+. Verify which files were tagged by the policy:
 +
-* "Create a tag called SENSITIVITY with type VARCHAR(256)"
+* "Show me all PDF files and their DOC_CATEGORY tag value"
 +
-. Create a policy to tag files that may contain personal information. Try asking Lightspeed:
+You should see all 3 PDFs tagged with `reference-guide`.
 +
-* "Create an AUTOTAG policy called tag-sensitive-files that filters on filename LIKE '%customer%', runs NOW, and sets SENSITIVITY to pii-likely"
+. Assess classification coverage:
 +
-If the policy creation fails (same `tags` limitation as Step 10), use the terminal fallback:
+* "How many files in the catalog have a DOC_CATEGORY tag set versus those that don't? Give me a count of classified vs unclassified."
 +
-[source,bash,role=execute,subs="attributes+"]
-----
-MCP_HOST=$(oc -n {dcs_namespace} get route dcs-mcp-route -o jsonpath='{.spec.host}')
-DCS_PW=$(oc get secret keystone -n {dcs_namespace} -o jsonpath='{.data.password}' | base64 -d)
-API_HOST=$(echo "{cluster_domain}" | sed 's/^apps\./api./')
-
-SID=$(curl -sk "https://$MCP_HOST/mcp/http" \
-  -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
-  -D /dev/stderr -o /dev/null \
-  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"cli","version":"1.0"}}}' \
-  2>&1 | grep -i mcp-session-id | awk '{print $2}' | tr -d '\r\n')
-
-curl -sk "https://$MCP_HOST/mcp/http" \
-  -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
-  -H "Mcp-Session-Id: $SID" \
-  -d "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":\"dcs_set_credentials\",\"arguments\":{\"cluster_url\":\"https://$API_HOST:6443\",\"username\":\"sdadmin\",\"password\":\"$DCS_PW\"}}}" > /dev/null 2>&1
-
-echo "Creating policy tag-sensitive-files..."
-curl -sk "https://$MCP_HOST/mcp/http" \
-  -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
-  -H "Mcp-Session-Id: $SID" \
-  -d "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"name\":\"dcs_create_policy\",\"arguments\":{\"policyName\":\"tag-sensitive-files\",\"polFilter\":\"filename LIKE '%customer%'\",\"schedule\":\"NOW\",\"tags\":{\"SENSITIVITY\":\"pii-likely\"}}}}" 2>/dev/null | grep -o '"text":"[^"]*"' | cut -d'"' -f4
-----
+You should see 3 classified and 22 unclassified out of 25 total -- highlighting the gap.
 +
-. Check what was tagged:
+. Identify files that may need attention based on their names:
 +
-* "Show me all files that have a SENSITIVITY tag set. Include the filename, filetype, and sensitivity value."
+* "Which files have names containing 'customer' or 'audit'? Show the filename, filetype, and size."
 +
-You should see `customer-directory.csv` tagged as `pii-likely`.
+Lightspeed will find `customer-directory.csv` and `api-audit-2026-03-31.log` -- files that could contain PII or sensitive operations data, but are not yet classified.
 +
-. Generate a security posture summary:
+. Explore further:
 +
-* "How many files in the catalog are classified (have any tag set like DOC_CATEGORY or SENSITIVITY) versus unclassified? Give me a count of each."
-+
-The result should show 4 classified files (3 PDFs with DOC_CATEGORY + 1 CSV with SENSITIVITY) out of 25 total.
+* "What is the total storage consumed by each file type?"
+* "Show me all YAML files under the manifests/ directory -- do any look like they contain credentials or secrets?"
 
 [NOTE]
 ====
-This is a metadata-based risk assessment -- the AI is classifying files by name patterns and file types, not by reading file contents. In a production environment with more data sources and richer metadata, MCP-driven classification scales to thousands of files in minutes, replacing days of manual SQL queries and spreadsheet analysis.
+*Going further: Security Risk Assessment.* The https://community.ibm.com/community/user/blogs/paul-llamas-virgen/2026/03/06/exploring-your-fusion-data-catalog-with-nlp[IBM Community article] demonstrates a full end-to-end security workflow where an LLM creates classification tags (e.g., `SENSITIVITY`), applies auto-tagging policies to flag files with PII, and generates a comprehensive security posture dashboard -- all through MCP conversation. The pattern is the same as what you did with `classify-pdfs`, extended to security classification at scale.
 ====
 
 [[conceptual-walkthrough]]
