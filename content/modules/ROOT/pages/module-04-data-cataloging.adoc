@@ -480,13 +480,17 @@ Now use Lightspeed to explore the catalog using only natural language -- no SQL 
 +
 * "List all policies in the system and their execution status"
 +
-_(Lightspeed calls `dcs_get_policies`)_ -- You should see `classify-pdfs` with action `AUTOTAG`, status `complete`, and 3 files processed.
+_(Lightspeed calls `dcs_get_policies`)_ -- You should see `classify-pdfs` with action `AUTOTAG`, status `complete`, and 3 files processed:
++
+image::lightspeed-policies.png[Lightspeed showing policy execution status via dcs_get_policies]
 +
 . Explore the catalog by file type:
 +
 * "What file types are present in the catalog and how many of each?"
 +
-_(Lightspeed calls `dcs_file_search`)_ -- You should see yaml (13), csv (3), json (3), log (3), pdf (3) totaling 25 files.
+_(Lightspeed calls `dcs_file_search`)_ -- You should see yaml (13), csv (3), json (3), log (3), pdf (3) totaling 25 files:
++
+image::lightspeed-filetypes.png[Lightspeed showing file type breakdown via dcs_file_search]
 +
 . Identify files that may need attention based on naming patterns:
 +
@@ -498,7 +502,9 @@ _(Lightspeed calls `dcs_file_search`)_ -- Lightspeed will find `customer-directo
 +
 * "What is the total storage consumed by each file type?"
 +
-_(Lightspeed calls `dcs_file_search`)_ -- You will see PDFs dominate at ~6.9 MB (documentation), while YAML manifests consume only ~5 KB despite having the most files.
+_(Lightspeed calls `dcs_file_search`)_ -- You will see PDFs dominate at ~6.9 MB (documentation), while YAML manifests consume only ~5 KB despite having the most files:
++
+image::lightspeed-storage.png[Lightspeed showing storage consumption by file type]
 +
 . Check the most recent additions:
 +
