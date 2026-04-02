@@ -476,15 +476,15 @@ This demonstrates a real-world pattern: LLMs excel at *reading* data through MCP
 
 Now that the `classify-pdfs` policy has executed, use Lightspeed to verify the results and assess classification coverage.
 
-. Verify which files were tagged by the policy:
+. Verify which files were tagged by the policy. Give the LLM the SQL directly -- custom tag names like `DOC_CATEGORY` are valid column names in the METAOCEAN table, but the tool schema only advertises generic `tag1-tag16`, so the LLM won't discover them on its own:
 +
-* "Show me all PDF files and their DOC_CATEGORY tag value"
+* "Run this query: SELECT FILENAME, DOC_CATEGORY FROM METAOCEAN WHERE FILETYPE = 'pdf'"
 +
 You should see all 3 PDFs tagged with `reference-guide`.
 +
 . Assess classification coverage:
 +
-* "How many files in the catalog have a DOC_CATEGORY tag set versus those that don't? Give me a count of classified vs unclassified."
+* "Run this query: SELECT CASE WHEN DOC_CATEGORY IS NOT NULL AND DOC_CATEGORY <> '' THEN 'classified' ELSE 'unclassified' END AS STATUS, COUNT(*) AS CNT FROM METAOCEAN GROUP BY STATUS"
 +
 You should see 3 classified and 22 unclassified out of 25 total -- highlighting the gap.
 +
