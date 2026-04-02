@@ -411,29 +411,39 @@ image::lightspeed-largest-files.png[Lightspeed showing the 10 largest files sort
 
 MCP enables the LLM to not just read the catalog, but also *enrich* it. The available tools include `dcs_create_tag`, `dcs_create_policy`, `dcs_get_recommend_tags`, and `dcs_get_registered_tags`. Try the following:
 
-. First, ask Lightspeed to analyze your data:
+. First, ask Lightspeed to analyze your data and recommend tags:
 +
 * "Analyze the file types and paths in the catalog and recommend meaningful tags for classifying them"
 +
+Lightspeed will call `dcs_get_recommend_tags` with a SQL query to explore the data, then propose tags based on what it finds:
++
 image::lightspeed-recommend-tags.png[Lightspeed recommending tags based on file types]
 +
-. Then create a tag:
+. Create a tag (DCS stores tag names in UPPERCASE automatically):
 +
-* "Create a tag called doc_category with type VARCHAR(256)"
+* "Create a tag called DOC_CATEGORY with type VARCHAR(256)"
 +
-. Create an auto-tagging policy. Be explicit about the tags parameter format (the tool expects a map):
+. Create an auto-tagging policy. You must be very explicit about the parameter format -- spell out each field including the JSON `tags` map with *UPPERCASE* tag names:
 +
-* "Create a policy named classify-pdfs with polFilter filetype='pdf', schedule NOW, and tags \{"doc_category": "reference-guide"}"
+* "Use the dcs_create_policy tool with policyName: classify-pdfs, polFilter: filetype='pdf', schedule: NOW, tags: \{"DOC_CATEGORY": "reference-guide"}"
 +
 [TIP]
 ====
-If the policy creation fails with _"'tags' parameter is required and must be a map"_, rephrase with the explicit JSON format: `tags: {"doc_category": "reference-guide"}`. The `dcs_create_policy` tool expects `tags` as a key-value object, and some LLMs need the exact structure spelled out.
+*Why so explicit?* The `dcs_create_policy` tool has strict requirements:
+
+* `tags` must be a JSON object (map), not a string -- e.g. `{"DOC_CATEGORY": "reference-guide"}`
+* Tag names must be *UPPERCASE* -- `DOC_CATEGORY` works, `doc_category` fails with "Invalid tag in policy action params"
+* `polFilter` uses SQL-like syntax -- `filetype='pdf'` or `filename LIKE '%customer%'`
+
+If Lightspeed gets the format wrong, paste the exact tool call format above.
 ====
 +
 . Verify what was created:
 +
 * "Show me all registered tags and their types"
-* "List all policies in the system"
+* "List all policies in the system and their execution status"
++
+You should see the `classify-pdfs` policy with status `complete` and 3 PDFs tagged. You can also check in the DCS console under *Tag management*:
 +
 image::dcs-tag-management.png[DCS Tag Management showing created tags]
 
@@ -444,14 +454,32 @@ The LLM can *propose and apply* tags programmatically through MCP tool calls. Th
 
 === Step 11: Security Risk Assessment
 
-This exercise mirrors the use case described in the https://community.ibm.com/community/user/blogs/paul-llamas-virgen/2026/03/06/exploring-your-fusion-data-catalog-with-nlp[IBM Community article]:
+This exercise mirrors the use case described in the https://community.ibm.com/community/user/blogs/paul-llamas-virgen/2026/03/06/exploring-your-fusion-data-catalog-with-nlp[IBM Community article]. You will create a security classification tag, apply it to potentially sensitive files, and then generate a posture summary.
 
-. Ask Lightspeed: "Analyze the catalog for files that may contain sensitive information. The customer-directory.csv likely has PII. Recommend classification policies."
-. Review the LLM's analysis -- it will use MCP tools to scan metadata, identify patterns, and propose tags
-. If satisfied with the recommendations, ask: "Apply the recommended security tags"
-. Ask: "Summarize the security posture of the data catalog -- how many files are classified vs. unclassified?"
+. First, create a security classification tag:
++
+* "Create a tag called SENSITIVITY with type VARCHAR(256)"
++
+. Create a policy to tag files that may contain personal information:
++
+* "Use the dcs_create_policy tool with policyName: tag-sensitive-files, polFilter: filename LIKE '%customer%', schedule: NOW, tags: \{"SENSITIVITY": "pii-likely"}"
++
+. Check what was tagged:
++
+* "Show me all files that have a SENSITIVITY tag set. Include the filename, filetype, and sensitivity value."
++
+You should see `customer-directory.csv` tagged as `pii-likely`.
++
+. Generate a security posture summary:
++
+* "How many files in the catalog are classified (have any tag set like DOC_CATEGORY or SENSITIVITY) versus unclassified? Give me a count of each."
++
+The result should show 4 classified files (3 PDFs with DOC_CATEGORY + 1 CSV with SENSITIVITY) out of 25 total.
 
-The result is a comprehensive, AI-generated view of your data security landscape -- produced through natural conversation rather than manual SQL queries and static reports.
+[NOTE]
+====
+This is a metadata-based risk assessment -- the AI is classifying files by name patterns and file types, not by reading file contents. In a production environment with more data sources and richer metadata, MCP-driven classification scales to thousands of files in minutes, replacing days of manual SQL queries and spreadsheet analysis.
+====
 
 [[conceptual-walkthrough]]
 == Conceptual Walkthrough
